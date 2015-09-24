@@ -14,7 +14,7 @@ main.exe:${OBJS}
 
 
 clean:
-	${RM} -rf *.o *.exe
+	${RM} -rf *.o *.exe *~
 
 .cpp.o:
 	${CC} -c $< ${CFLAG}
