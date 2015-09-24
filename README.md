@@ -1,3 +1,3 @@
 # USB application
 * winusb/ list usb device
-* usb/	  fireware for C8051F320 ÏêÏ¸¿ª·¢µÄ²Î¿¼³ÌĞòÉÏ´«°Ù¶ÈÔÆ£¬ C8051F320USB.7Z
+* usb/	  fireware for C8051F320 è¯¦ç»†å¼€å‘çš„å‚è€ƒç¨‹åºä¸Šä¼ ç™¾åº¦äº‘ï¼Œ C8051F320USB.7Z
