@@ -2,3 +2,7 @@
 *.o
 *.exe
 .gitattributes
+*.lst
+*.ref
+*.sym
+*.ihx
