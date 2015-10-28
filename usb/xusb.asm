@@ -12,11 +12,11 @@ RED_LED			.equ	p2+PIN_RED
 GREEN_LED		.equ	p2+PIN_GREEN
 
 ; SETUP structure
-S_REQUEST_TYPE	.equ	0
-S_REQUEST		.equ	1
-S_VALUE			.equ	2
-S_INDEX			.equ	4
-S_LENGTH		.equ	6
+;bmRequestType	.equ	0
+bRequest		.equ	1
+wValue			.equ	2
+wIndex			.equ	4
+wLength			.equ	6
 
 ; endpoint state
 EP_IDLE			.equ	0
@@ -32,9 +32,10 @@ DEV_RX_FILE		.equ	2
 DEV_TX_FILE		.equ	3
 DEV_TX_ACK		.equ	4
 DEV_ERROR		.equ	5
+
 ; }}}
 ; USB CONSTANTS {{{
-;; request codes
+;; bRequest codes
 GET_STATUS			.equ 0
 CLEAR_FEATURE		.equ 1
 SET_FEATURE			.equ 3
@@ -48,7 +49,7 @@ SET_INTERFACE		.equ 11
 SYNCH_FRAME			.equ 12
 
 ;; descriptor types
-
+DSC_DEVICE						.equ 1
 DSC_CONFIGURATION				.equ 2
 DSC_STRING						.equ 3
 DSC_INTERFACE					.equ 4
@@ -56,6 +57,10 @@ DSC_ENDPOINT					.equ 5
 DSC_DEVICE_QUALIFIER			.equ 6
 DSC_OTHER_SPEED_CONFIGURATION	.equ 7
 DSC_INTERFACE_POWER				.equ 8
+; HID descriptor types
+DSC_REPORT						.equ 0x22
+DSC_HID							.equ 0x21
+DSC_PHYSICAL					.equ 0x23
 ; }}}
 ; bit definition {{{
 .area BITDATA (ABS)
@@ -102,6 +107,9 @@ usb0_int:
 	push	acc
 	setb	rs0
 	setb	rs1
+
+;inc debug_cnt
+
 	setb	RED_LED
 ;	cpl		GREEN_LED
 	mov		r0,#CMINT
@@ -113,24 +121,24 @@ usb0_int:
 	mov		r0,#OUT1INT
 	acall	uread
 	mov		b_out1int,b
-
+acall inc_debug_cnt
+acall record_other
 	mov		a,b_cmint
-	jnb		acc+RSTINT,usin_1
+	jnb		acc+RSTINT,1$
 	acall	usb_reset
-usin_1:
+1$:
 	mov		a,b_in1int
-	jnb		acc+EP0,usin_2
+	jnb		acc+EP0,2$
 	acall	endpoint0
-usin_2:
+2$:
 	mov		a,b_in1int
-	jnb		acc+IN1,usin_3
+	jnb		acc+IN1,3$
 ; endpoint1 in
-usin_3:
+3$:
 	mov		a,b_out1int
-	jnb		acc+OUT2,usin_4
+	jnb		acc+OUT2,4$
 ; endpoint2 out
-usin_4:
-
+4$:
 	clr		RED_LED
 	pop		acc
 	pop		psw
@@ -152,26 +160,27 @@ endpoint0:
 	mov		r0,#E0CSR
 	acall	uread
 	mov		a,b
+acall record_other
+	jnb		acc+SUEND,2$
 ; handle setup end
-	jnb		acc+SUEND,enp0_2
 	mov		r0,#E0CSR
 	mov		a,#1 << SSUEND
 	acall	uwrite
 	mov		mstate,#DEV_IDLE
-enp0_2:
+2$:
 	mov		a,b
-	jnb		acc+STSTL,enp0_3
+	jnb		acc+STSTL,3$
 	mov		r0,#E0CSR
 	clr		a
 	acall	uwrite
 	mov		mstate,#DEV_IDLE
-enp0_3:
+3$:
 	mov		a,b
-	jnb		acc+OPRDY,enp0_1
+	jnb		acc+OPRDY,1$
 	acall	handle_incoming_packet
-enp0_1:
+1$:
 	mov		a,ep0_state
-	cjne	a,#EP_TX,enp0_4
+	cjne	a,#EP_TX,4$
 	mov		dpl,ep0data
 	mov		dph,ep0data+1
 	mov		r0,ep0_nbyte
@@ -182,59 +191,119 @@ enp0_1:
 	mov		r0,#E0CSR
 	acall	uwrite
 	mov		ep0_state,#EP_IDLE
-enp0_4:
-
+4$:
 	ret
 handle_incoming_packet:
 	mov		dptr,#setup_data
 	clr		a					; end point0
 	mov		r0,#8
 	acall	fifo_read
+
+acall inc_debug_cnt
+acall record_setup
+
 	mov		dptr,#setup_data
 	movx	a,@dptr
 	anl		a,#0b11100000		; hold 7~5 bits
 	cjne	a,#0,hipa_1
 ; setup transfer out
-	mov		dptr,#setup_data+S_REQUEST
+; 00 05 02 00 00 00 00 00
+; 8字节SETUP package
+; 00 05 SET_ADDRESS, 02 地址为2
+	mov		dptr,#setup_data+bRequest
 	movx	a,@dptr
 	cjne	a,#SET_ADDRESS,1$
 ;cpl GREEN_LED
 	acall	uset_address
-	sjmp	hipa_2
+	ajmp	hipa_2
 1$:
 	cjne	a,#SET_INTERFACE,2$
-	sjmp	hipa_2
+	ajmp	hipa_2
 2$:
 	cjne	a,#SET_FEATURE,3$
-	sjmp	hipa_2
+	ajmp	hipa_2
 3$:
 	cjne	a,#SET_CONFIGURATION,4$
-	sjmp	hipa_2
+	
+	ajmp	hipa_2
 4$:
 	cjne	a,#CLEAR_FEATURE,5$
-	sjmp	hipa_2
+
+	ajmp	hipa_2
 5$:
 
 hipa_1:
 	cjne	a,#0x80,setup_tx_err
 ; descriptor transimit (device to host)
-	mov		dptr,#setup_data+S_REQUEST
+	mov		dptr,#setup_data+bRequest
 	movx	a,@dptr
-	cjne	a,#GET_DESCRIPTOR,1$
+	cjne	a,#GET_DESCRIPTOR,2$
+
 ; GET_DESCRIPTOR, next step is expected a OUT transfer, SET_ADDRESS
-	mov		ep0data,#descriptor			;byte low
-	mov		ep0data+1,#descriptor >> 8	;byte high
+; 80 06 00 01 00 00 40 00
+; 第一次接收到的8字节SETUP package
+; USB_20.PDF 253页
+; 根据USB定义, wValue(Descriptor type and Descriptor index) = 0x0100 
+; the wValue field specifies the descriptor type in the high byte
+; the descriptor index in the low byte
+; 所以,这里的 descriptor type 就是 DEVICE (table 9-5)
+	mov		dptr,#setup_data+wValue+1   ; descriptor type in high byte
+	movx	a,@dptr
+	cjne	a,#DSC_DEVICE,11$
+
+	mov		ep0data,#des_device			;byte low
+	mov		ep0data+1,#des_device >> 8	;byte high
 	mov		ep0_nbyte,#18				; length of descriptor
 	mov		ep0_state,#EP_TX
 ;cpl GREEN_LED
 	sjmp	hipa_2
-1$:
-; other get operations
+11$:
+	cjne	a,#DSC_CONFIGURATION,12$
+	mov		dptr,#setup_data+wLength
+	movx	a,@dptr
+	mov		ep0_nbyte,#DES_CONFIG_LEN	; length of descriptor
+	cjne	a,#DES_CONFIG_LEN, . + 3
+	jnc		19$
+	mov		ep0_nbyte,a
+19$:
+
+	mov		ep0data,#des_config			;byte low
+	mov		ep0data+1,#des_config >> 8	;byte high
+
+	mov		ep0_state,#EP_TX
+;cpl GREEN_LED
+	sjmp	hipa_2
+
+12$:
+; other get descriptor operations
+	cjne	a,#DSC_STRING,13$
+	mov		dptr,#setup_data+wValue
+	movx	a,@dptr
+	cjne	a,#1,121$
+	mov		ep0_state,#EP_TX
+	mov		ep0data,#string1
+	mov		ep0data+1,#string1 >> 8
+	mov		ep0_nbyte,#NUMSTRING1
+	sjmp	hipa_2
+121$:
+	cjne	a,#2,122$
+	mov		ep0_state,#EP_TX
+	mov		ep0data,#string2
+	mov		ep0data+1,#string2 >> 8
+	mov		ep0_nbyte,#NUMSTRING2
+	sjmp	hipa_2
+122$:
+	acall	get_desc_report
+	sjmp	hipa_2
+13$:
 ;cpl GREEN_LED
 	cjne	a,#GET_STATUS,2$
+
+
 	sjmp	hipa_2
 2$:
 	cjne	a,#GET_CONFIGURATION,3$
+
 ;cpl GREEN_LED
 	sjmp	hipa_2
 3$:
@@ -243,29 +312,43 @@ hipa_1:
 setup_tx_err:
 	mov		ep0_state,#EP_ERROR
 hipa_2:
-	mov		a,ep0_state
-	cjne	a,#EP_ERROR,hipa_3
-	mov		a,#(1 << SOPRDY)+(1 << SDSTL)
-	sjmp	hipa_4
-hipa_3:
+;	mov		a,ep0_state
+;	cjne	a,#EP_ERROR,hipa_3
+;	mov		a,#(1 << SOPRDY)+(1 << SDSTL)
+;	sjmp	hipa_4
+;hipa_3:
 	mov		a,#(1 << SOPRDY)
-hipa_4:
+;hipa_4:
 	mov		r0,#E0CSR
 	acall	uwrite
 	ret
 
+get_desc_report:
+	cjne	a,#DSC_REPORT,hipa_2
+	mov		ep0_state,#EP_TX
+	mov		ep0data,#des_report
+	mov		ep0data+1,#des_report >> 8
+	mov		ep0_nbyte,#des_report_end-des_report
+	ret
 uset_address:
 	mov		ep0_state,#EP_ERROR
-	mov		dptr,#setup_data+S_INDEX
+	mov		dptr,#setup_data+wIndex
 	movx	a,@dptr
 	jnz		sead_1
-	mov		dptr,#setup_data+S_INDEX+1
+	mov		dptr,#setup_data+wIndex+1
 	movx	a,@dptr
 	jnz		sead_1
-	mov		dptr,#setup_data+S_VALUE
+	mov		dptr,#setup_data+wValue
 	movx	a,@dptr
 	mov		r0,#FADDR
 	acall	uwrite
+
+;1$:
+;	mov		r0,#FADDR
+;	acall	uread
+;	mov		a,b
+;	jb		acc.7,1$
+
 	mov		ep0_state,#EP_IDLE
 sead_1:
 	ret
@@ -322,11 +405,13 @@ init_io:
 ; }}}
 ; function ustop {{{
 ustop:
+	setb	GREEN_LED
 	mov		USB0XCN,#0
 	ret
 ; }}}
 ; function ustart {{{
 ustart:
+	clr		GREEN_LED
 	mov		r0,#POWER
 	mov		a,#8
 	acall	uwrite
@@ -351,6 +436,7 @@ ustart:
 	clr		a
 	acall	uwrite
 
+	mov		debug_cnt,#0
 	ret
 ; }}}
 ; function fifo_read,fifo_write {{{
@@ -377,22 +463,22 @@ fire_1:
 fifo_cwrite:
 	add		a,#0x20
 	mov		USB0ADR,a
-ficw_4:
+4$:
 	mov		a,USB0ADR
-	jb		acc.7,ficw_4
-ficw_3:
+	jb		acc.7,4$
+3$:
 	mov		a,r1
-	jnz		ficw_1
+	jnz		1$
 	mov		a,r0
-	jnz		ficw_1
+	jnz		1$
 	ret
-ficw_1:
+1$:
 	clr		a
 	movc	a,@a+dptr
 	mov		USB0DAT,a
-ficw_2:
+2$:
 	mov		a,USB0ADR
-	jb		acc.7,ficw_2
+	jb		acc.7,2$
 	inc		dptr
 	clr		c
 	mov		a,r0
@@ -402,7 +488,7 @@ ficw_2:
 	subb	a,#0
 	mov		r1,a
 
-	sjmp	ficw_3
+	sjmp	3$
 ; }}}
 
 ; function uwrite,uread {{{
@@ -447,10 +533,12 @@ main:
 	acall	init_usb_clk
 	acall	init_interrupt
 	clr		usb_en
+	acall	clear_x
+
 ;	acall	ustart
 ;	acall	ustop
-clr debug_start
 
+	setb	GREEN_LED
 m1:
 	acall	wait_button
 	cpl		usb_en
@@ -459,24 +547,292 @@ m1:
 	sjmp	m1
 start_usb:
 
-mov debug_cnt,#0
 	acall	ustart
 	sjmp	m1
+clear_x:
+	mov		EMI0CN,#0
+
+	clr		a
+	mov		r0,a
+1$:
+	clr		a
+	movx	@r0,a
+	inc		r0
+	mov		a,r0
+	jnz		1$
+	mov		EMI0CN,#1
+2$:
+	clr		a
+	movx	@r0,a
+	inc		r0
+	mov		a,r0
+	jnz		2$
+	mov		EMI0CN,#2
+3$:
+	clr		a
+	movx	@r0,a
+	inc		r0
+	mov		a,r0
+	jnz		3$
+	mov		EMI0CN,#3
+4$:
+	clr		a
+	movx	@r0,a
+	inc		r0
+	mov		a,r0
+	jnz		4$
+	mov		EMI0CN,#0
+	ret
+
+record_setup:
+
+	mov		a,debug_cnt
+	clr		c
+	rlc		a
+	mov		r0,a
+	clr		a
+	rlc		a
+	mov		r1,a
+
+;	clr		c
+	mov		a,r0
+	rlc		a
+	mov		r0,a
+	mov		a,r1
+	rlc		a
+	mov		r1,a
+
+;	clr		c
+;	mov		a,r0
+;	rlc		a
+;	mov		r0,a
+;	mov		a,r1
+;	rlc		a
+;	mov		r1,a
+
+;	clr		c
+	mov		a,r0
+	rlc		a
+	mov		dpl,a
+	mov		a,r1
+	rlc		a
+	mov		dph,a
+
+
+	mov		r1,a
+	mov		r2,#8
+	mov		r0,#0
+1$:
+	movx	a,@r0
+	movx	@dptr,a
+	inc		r0
+	inc		dptr
+	dec		r2
+	mov		a,r2
+	jnz		1$
+	ret
+
+record_other:
+	mov		a,debug_cnt
+	clr		c
+	rlc		a
+	mov		r0,a
+	clr		a
+	rlc		a
+	mov		r1,a
+
+;	clr		c
+	mov		a,r0
+	rlc		a
+	mov		r0,a
+	mov		a,r1
+	rlc		a
+	mov		r1,a
+
+;	clr		c
+;	mov		a,r0
+;	rlc		a
+;	mov		r0,a
+;	mov		a,r1
+;	rlc		a
+;	mov		r1,a
+
+;	clr		c
+	mov		a,r0
+	rlc		a
+	mov		dpl,a
+	mov		a,r1
+	rlc		a
+	mov		dph,a
+
+;	clr		c
+;	mov		a,#8
+;	addc	a,r0
+;	mov		dpl,a
+;	clr		a
+;	addc	a,r1
+;	mov		dph,a
+
+
+;	mov		a,#0xff
+;	movx	@dptr,a
+
+;	inc		dptr
+	mov		a,b_cmint
+	movx	@dptr,a
+
+	inc		dptr
+	mov		a,b_in1int
+	movx	@dptr,a
+
+	inc		dptr
+	mov		a,b_out1int
+	movx	@dptr,a
+
+	inc		dptr		; E0CSR
+	mov		a,b
+	movx	@dptr,a
+
+	ret
+
+inc_debug_cnt:
+
+	mov		a,debug_cnt
+	cjne	a,#60,1$
+	ret
+1$:
+	inc		debug_cnt
+	ret
+test_recrd:
+clr ea
+	mov		dptr,#0
+	mov		a,#1
+1$:
+	movx	@dptr,a
+	inc		dptr
+	inc		a
+	cjne	a,#9,1$
+	mov debug_cnt,#0
+2$:
+inc debug_cnt
+	acall record_setup
+mov a, debug_cnt
+cjne a,#20,2$
+
+	sjmp .
 ; }}}
-descriptor:
+; usb_20.pdf page 262
+; 
+des_device:
 .db 18			; bLength
 .db 1			; bDescriptorType
-.db 0,2			; bcdUSB 0x100 USB 2.0
+.db 0,1			; bcdUSB 0x100 USB 2.0
 .db 0			; bDeviceClass
 .db 0			; bDeviceSubClass premnent
 .db 0			; bDeviceProtocol
 .db 64			; bMaxPackerSize0
-.db 0,0x40		; idVendor
+.db 4,4			; idVendor
 .db 0,0xaa		; idProduct
-.db 0,0			; bcdDevice
+.db 0x10,0		; bcdDevice
 .db 0			; iManufacturer
-.db 0			; iProduct
-.db 0			; iSerialNumber
+.db 2			; iProduct
+.db 1			; iSerialNumber
 .db 1			; bNumConfigurations
 
+DES_CONFIG_LEN	.equ conf_end-des_config
+des_config:
+.db 0x09				; bLength
+.db 0x02				; bDescriptorType
+.db DES_CONFIG_LEN,0x00	; TotalLength (lsb first)
+.db 0x01				; NumInterfaces
+.db 0x55				; bConfigurationValue
+.db 0x00				; iConfiguration
+.db 0x80				; bmAttributes (no remote wakeup)
+.db 0x0f				; MaxPower (*2mA)
+; interface0
+.db 0x09				; bLength
+.db 0x04        		; bDescriptorType
+.db 0x00        		; bInterfaceNumber
+.db 0x00        		; bAlternateSetting
+.db 0x02        		; bNumEndpoints
+.db 0x03        		; bInterfaceClass
+.db 0x00        		; bInterfaceSubClass
+.db 0x00        		; bInterfaceProcotol
+.db 0x00        		; iInterface
+; HID descriptor
+.db hid_report-.		; bLength
+.db 0x21				; HID descriptor type
+.db 0x11,0x01			; bcdHID
+.db 0					; bCountoryCode
+.db 1					; bNumDescriptor
+.db 0x22				; Report descriptor type
+.db des_report_end-des_report,0x00			; bDescriptorLength
+hid_report:
+; Begin Descriptor: Endpoint1, Interface0, Alternate0
+.db 0x07                ; bLength
+.db 0x05        		; bDescriptorType
+.db 0x81        		; bEndpointAddress (ep1, IN)
+.db 0x03        		; bmAttributes (Bulk)
+.db 0x40, 0x00  		; wMaxPacketSize (lsb first)
+.db 0x05        		; bInterval
+;Begin Descriptor: Endpoint2, Interface0, Alternate0
+.db 0x07                ; bLength
+.db 0x05        		; bDescriptorType
+.db 0x02        		; bEndpointAddress (ep2, OUT)
+.db 0x03        		; bmAttributes (Bulk)
+.db 0x40, 0x00  		; wMaxPacketSize (lsb first)
+.db 0x05        		; bInterval
+conf_end:
+string1:
+NUMSTRING1 .equ str1_end-.
+.db NUMSTRING1			; bLength
+.db 0x03				; string descriptor
+.db 'S',0,'N',0,'0',0,'0',0,'1',0			; string
+str1_end:
+string2:
+NUMSTRING2 .equ str2_end-.
+.db NUMSTRING2			; bLength
+.db 0x03				; string descriptor
+.db 'D',0,'E',0,'M',0,'O',0		; string
+str2_end:
+des_report:
+.db 0x06, 0x00, 0xff	;Usage Page(Vendor-defined)
+.db 0x09, 0x01       	;Usage
+.db 0xa1, 0x01		 	;Collection(Application)
+.db 0xa1, 0x00			;  Collection(Physical)
+; report 1
+.db 0x09, 0x01       	;    Usage
+.db 0x75, 0x08		 	;    Report Size(8)
+.db 0x95, 0x40		 	;    Report Count(0x40)
+.db 0x26, 0xff, 0x00    ;    Logical Maximum(255)
+.db 0x15, 0x00          ;    Logical Minmum(0)
+.db 0x85, 0x01          ;    Report ID(1)
+;.db 0x95, 0x01          ;    Report Count(1)
+.db 0x09, 0x01          ;    Usage
+.db 0x81, 0x02          ;    Input Data,variable,absolute
+; report 2
+.db 0x09, 0x01       	;    Usage
+.db 0x75, 0x08		 	;    Report Size(8)
+.db 0x95, 0x40		 	;    Report Count(0x40)
+.db 0x26, 0xff, 0x00    ;    Logical Maximum(255)
+.db 0x15, 0x00          ;    Logical Minmum(0)
+.db 0x85, 0x02          ;    Report ID(2)
+.db 0x95, 0x40          ;    Report Count(0x40)
+.db 0x09, 0x01          ;    Usage
+.db 0x91, 0x02          ;    Output Data,variable,absolute
+.db 0xc0  				;  End Collection(Physical)
+.db 0xc0  				;End Collection(Application)
+des_report_end:
+
+
+; 最后的SETUP PACAKGE:
+; 82 06 00 22 01 00 50 00
+; 82 06: GET_DESCRIPTOR, Recipient: Endpoint
+; 22: wValue(H) REPORT(descriptor type)
+; 00; wValue(L) 0(descriptor index)
+; 01: wIndex(L) interface 1
+; 50 00: report descriptor 的长度, 原本 HID descriptor中断bDescriptorLength是0x10
+; host 跟据 0x10+0x40, 然后向设备发出这个REQUEST
+
 ; vim: filetype=asm51 tabstop=4
+

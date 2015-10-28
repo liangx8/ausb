@@ -1,0 +1,37 @@
+参考HID1_11.PDF
+
+REPORT DESCRIPORT 中的ITEM定义
+
+1000 00nn main input
+1001 00nn main output
+1011 00nn main Feature
+1010 00nn main Collection
+1100 00nn main End Collection
+0000 01nn global Usage Page
+  在HUT1_12V2.PDF中有定义 参数
+0001 01nn global Logical Minmum
+0010 01nn global Logical Maximum
+0011 01nn global Physical Minmum
+0100 01nn global Physical Maximum
+0101 01nn global Unit Exponent
+0110 01nn global Unit
+0111 01nn global Report Size
+1000 01nn global Report ID
+1001 01nn global Report Count
+1010 01nn global Push
+1011 01nn global Pop
+1100~1111 01nn global Reserved
+0000 10nn Local Usage
+0001 10nn Local Usage Minmum
+0010 10nn Local Usage Maximum
+0011 10nn Local Designator Index
+0100 10nn Local Designator Minmum
+0101 10nn Local Designator Maximum
+0111 10nn Local String Index
+1000 10nn Local String Minmum
+1001 10nn Local String Maximum
+1010 10nn Local Delimiter
+1011~1111 10nn Local Reserved
+
+
+report.raw 是C8051F的烧写器的固件中用BUS HOUND提取出来的REPORT DESCRIPORT.
