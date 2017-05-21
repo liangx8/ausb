@@ -6,3 +6,9 @@
 *.ref
 *.sym
 *.ihx
+**/*.asm
+**/*.lk
+**/*.map
+**/*.mem
+**/*.rel
+**/*.rst
