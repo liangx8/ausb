@@ -4,6 +4,7 @@
 #include "usb_desc.h"
 #include "registers.h"
 #include "usb_struct.h"
+#include "uart_message.h"
 #define MULRDY   5
 
 // 引脚定义
@@ -18,10 +19,13 @@
 
 #define DEV_DEFAULT     0
 
+#define strprint(str) printstr( sizeof(str),str)
+
 // 变量定义
 DEVICE_STATUS    gDeviceStatus;
 EP0_COMMAND      gEp0Command;
 
+__code const char hex_table[]={'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'};
 
 void init_uart(void)
 {
@@ -94,36 +98,72 @@ void usb_start(void){
   USB0XCN = 0b11100000;
   UWRITE_BYTE(CLKREC,0x80);
   UWRITE_BYTE(POWER,0);
+  //mov		USB0XCN,#0
+}
+void fdcr(void)
+{
+	SBUF0='\n';
+	while(!TI0);
+	TI0=0;
+	SBUF0='\r';
+	while(!TI0);
+	TI0=0;
+}
+void printstr(uint8_t len,__code char *str)
+{
+	uint8_t i;
+	fdcr();
+	for(i=0;i<len;i++){
+		SBUF0=str[i];
+		while(!TI0);
+		TI0=0;
+	}
+}
+void printbuf(uint8_t len,uint8_t *buf)
+{
+	uint8_t i;
+	fdcr();
+	for(i=0;i<len;i++){
+		uint8_t b=buf[i] >> 4;
+		if (i>0){
+			SBUF0 = ' ';
+			while(!TI0);
+			TI0=0;
+		}
+		b = b & 0x0f;
+		SBUF0 = hex_table[b];
+		while(!TI0);
+		TI0=0;
+		b = buf[i] & 0x0f;
+		SBUF0 = hex_table[b];
+		while(!TI0);
+		TI0=0;
+	}
+}
+void input_callback(uint8_t c)
+{
+	switch(c){
+		case '1':
+		printstr(sizeof(msg_usb_start),msg_usb_start);
+		usb_start();
+		break;
+		case '2':
+		printstr(sizeof(msg_usb_stop),msg_usb_stop);
+		USB0XCN=0;
+		break;
+	}
 }
 // for uart
-#define UART_SEND_IDLE   0
-#define UART_SEND_ENGAGE 1
-__bit uart_send_idle,uart_send_cmd;
-uint8_t uart_send_buf;
 void uart_poll(void)
 {
-	if(!uart_send_idle){
-		if(!TI0){
-			goto poll_recv;
-		}
-		TI0=0;
-		uart_send_idle=1;
-	}
-	if(uart_send_cmd){
-		SBUF0=uart_send_buf;
-		uart_send_idle=0;
-		uart_send_cmd=0;
-	}
-	poll_recv:
 	if(RI0){
 		uint8_t b;
-		if(uart_send_cmd){
-			return;
-		}
-		uart_send_cmd=1;
-		b=SBUF0;
-		uart_send_buf=b;
 		RI0=0;
+		b=SBUF0;
+		SBUF0=b;
+		while(!TI0);
+		TI0=0;
+		input_callback(b);
 	}
 }
 void main(void){
@@ -132,18 +172,16 @@ void main(void){
   init();
   init_usb();
   init_uart();
+  
   LED1 =0;
   LED2 =0;
-  
 
   //  usb_start();
   // EUSB0 = 1
   EIE1 = 0b00000010;
-  EA = 0;
+  EA = 1;
   LED1=1;
   LED2=1;
-  uart_send_idle=1;
-  uart_send_cmd=0;
   while(1) uart_poll();
 }
 void usb_reset(void);
@@ -197,13 +235,15 @@ void usb_reset(void)
   for (i=0;i<sizeof(DEVICE_STATUS);i++){
 	*pDevStatus++ = 0x00;
   }
+  UWRITE_BYTE(POWER,0);
+  strprint(msg_usb_reset);
   // Set device state to default
   gDeviceStatus.bDevState = DEV_DEFAULT;
 }
 void usb_endpoint0(void)
 {
    uint8_t bCsr1, uTxBytes;
-
+   strprint(msg_usb_endpoint0);
    UWRITE_BYTE(INDEX, 0);                 // Target ep0
    UREAD_BYTE(E0CSR, bCsr1);
    if(bCsr1 & rbSUEND){
