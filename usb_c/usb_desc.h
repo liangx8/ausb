@@ -97,6 +97,11 @@
 #define ep_wMaxPacketSize 4               // Max FIFO size
 #define ep_bInterval 6                    // Polling interval (int only)
 
+
+extern __code uint8_t gDescriptor[];
+extern __code uint8_t gDescriptorCfg1[];
+extern __code uint8_t gDescriptorQualifier[];
+
 #endif   // F32x_USB_DESCRIPTORS_H 
 
 //-----------------------------------------------------------------------------

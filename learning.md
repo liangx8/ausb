@@ -52,3 +52,18 @@ D(x) = xdF(x) + xkL(x)；
 另一组数据0100000 1110 00110（addr endp crc）可以自己尝试验证
 最后感谢博主分享，恩等我吧data的包发出去试试看主机有没有响应,以查看crc16按博主的方法计算有没有问题，
 谢谢
+
+
+C8051F320 USB
+
+endpoint0 中断发生的情况
+7      6      5     4     3       2     1      0
+SSUEND SOPRDY SDSTL SUEND DATAEND STSTL INPRDY OPRDY
+
+
+
+1 数据包(OUT or SETUP) 已经收到并且loaded into ENDPOINT0 FIFO, OPRDY 位设置为1.
+2 IN 数据包被成功从 Endpoint0 FIFO unload 并且传输到host, INPRDY 被硬件重置0
+3 一次IN transaction 完成(this interrupt generated during the status stage of the transaction).
+4 由于一次 protocal violation 导致的控制transaction 结束，硬件设置 STSTL ,
+5 在软件设置DATAEND之前，一次控制传输结束，硬件设置 SUEND位1.

@@ -13,14 +13,16 @@ CFLAG=/COLUMNS /D:NO_UART:1 /D:BATTERY_TYPE:1
 #TARGET = heli35
 #TARGET = test
 XUSB=xusb
+RELS = xusb.rel uart.rel usb_func.rel usb_data.rel
 
 all:${XUSB}.ihx
+	cp $(XUSB).ihx $(XUSB).hex
 	@echo "*** Done ***"
 
-$(XUSB).ihx:${XUSB}.ref
-	${SDLD} $@ $<
+$(XUSB).ihx:${RELS}
+	${SDLD} -m $@ ${RELS}
 
-%.ref:%.asm
+%.rel:%.asm
 	${SDAS} -l -s -o $@ $<
 clean:
-	${RM} -rf *.hex *.obj *.eep *.map *.cof *.lst *~ *.ihx *.ref *.sym
+	${RM} -rf *.hex *.obj *.eep *.map *.cof *.lst *~ *.ihx *.rel *.sym
