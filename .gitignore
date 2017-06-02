@@ -6,7 +6,7 @@
 *.ref
 *.sym
 *.ihx
-**/*.asm
+usb_c/*.asm
 **/*.lk
 **/*.map
 **/*.mem
