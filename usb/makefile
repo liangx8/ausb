@@ -13,7 +13,7 @@ CFLAG=/COLUMNS /D:NO_UART:1 /D:BATTERY_TYPE:1
 #TARGET = heli35
 #TARGET = test
 XUSB=xusb
-RELS = xusb.rel uart.rel usb_func.rel usb_data.rel
+RELS = xusb.rel
 
 all:${XUSB}.ihx
 	cp $(XUSB).ihx $(XUSB).hex

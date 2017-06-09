@@ -290,5 +290,15 @@ STSTL	.equ 2
 INPRDY	.equ 1
 OPRDY	.equ 0
 
+; EINCSRL
+IN_CLRDT	.equ 6
+IN_STSTL	.equ 5
+IN_SDSTL	.equ 4
+IN_FLUSH	.equ 3
+IN_UNDRUN	.equ 2
+IN_FIFONE	.equ 1
+IN_INPRDY	.equ 0
+
+
 ;#endif
 ; vim:filetype=asm51:
