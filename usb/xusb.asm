@@ -12,7 +12,11 @@ LED4			.equ	P3.0
 ; }}}
 
 .area BITDATA1 (ABS,BIT)
-debug_flag:			.ds	1
+echo_flag:		.ds 1		;1 显示 echo_char, 0 不显示
+echo_broke:		.ds	1		;1 uart的输出中断链已经断开
+new_income:		.ds 1		; 
+
+usb_en:			.ds	1
 full_buf:		.ds 1
 ; usb flag
 configured:		.ds 1
@@ -28,7 +32,7 @@ main_loop_cnt:	.ds 1
 buf_start:		.ds 1
 buf_end:		.ds 1
 
-byte1:			.ds 1
+echo_char:		.ds 1
 ; end uart
 ;===================================================================
 
@@ -47,29 +51,36 @@ dev_status:		.ds 1
 tx_size:		.ds 1
 
 c_ptr:			.ds 2
+
 ; usb end
 ;===================================================================
 
 
 .area HOME (ABS,CODE)
-	ljmp	main
+	ljmp	main			; 0x0000
 ;	.ds	1
 	reti
+	.ds	7					; 0x0003
+	reti
+.org 0x000b
+	.ds	7					; 0x000b
+	reti
+.org 0x0013
+	reti
+.org 0x001b
 	.ds	7
 	reti
-	.ds	7
+.org 0x0023
+	push	psw					; 0x0023
+	ljmp	uart0_int
 	reti
-	.ds	7
+.org 0x002b
 	reti
-	.ds	7
+.org 0x0033
 	reti
-	.ds	7
+.org 0x003b
 	reti
-	.ds	7
-	reti
-	.ds	7
-	reti
-	.ds	7
+.org 0x0043
 	push	psw
 	ljmp	usb0_int
 	.ds 3
@@ -145,7 +156,7 @@ init_timer:
 main:
 	mov		sp,#0xaf
 	mov		psw,#0
-	clr		debug_flag
+	clr		usb_en
 
 	acall	init_io
 	setb	LED1
@@ -156,7 +167,7 @@ main:
 	acall	init_clk
 	acall	init_uart
 	acall	init_timer
-	acall	init_usb
+	acall	init_interrupt
 
 	acall	delay
 	clr		LED2
@@ -172,8 +183,19 @@ main:
 
 	acall	power_up_echo
 	clr		LED3
+	clr		RI0
+	clr		TI0
+	setb	echo_broke
+	clr		full_buf
+	clr		new_income
+	clr		echo_flag
 	setb	EA
+	mov		dptr,#str_cp
+	acall	printstr
+	mov		a,#0x55
+	acall	put_hex
 main_loop:
+	acall	handler
 	jnb		TF0,100$
 	clr		TF0
 	djnz	main_loop_cnt,100$
@@ -181,8 +203,6 @@ main_loop:
 	cpl		LED2
 	mov		main_loop_cnt,#50
 100$:
-	acall	put_xbuf_to_uart
-	acall	uart_pipo
 	sjmp	main_loop
 ; main_loop end
 delay:
@@ -194,7 +214,6 @@ delay:
 	djnz	r7,1$
 	ret
 power_up_echo:
-
 	jnb		TF0, power_up_echo
 	clr		TF0
 	mov		a,r7
@@ -206,50 +225,32 @@ power_up_echo:
 	djnz	r7,power_up_echo
 	ret
 handler:
-; r7 作为参数
-	
-	cjne	r7,#'1',100$
-	acall	fdcr
+	mov		c,echo_broke
+	mov		LED3,c
+	jbc		new_income,1$
+	ret
+1$:
+	mov		a,echo_char
+	cjne	a,#'1',2$
+	jb		usb_en,4$
+	setb	usb_en
+	acall	usb_start
 	mov		dptr,#str_usb_start
 	acall	printstr
-	ajmp	usb_start
-	;ret
-100$:
-	cjne	r7,#'2',101$
-	acall	fdcr
+	ajmp	feedline
+2$:
+	cjne	a,#'2',3$
+	clr		usb_en
+	mov		USB0XCN,#0
 	mov		dptr,#str_usb_stop
 	acall	printstr
-	mov		USB0XCN,#0
-	
-	ret
-101$:
-	cjne	r7,#'3',102$
-	mov		a,#0x45
-	ajmp	checkpoint
-102$:
-	cjne	r7,#'4',103$
-	mov		a,#0x46
-	ajmp	checkpoint
-103$:
-	cjne	r7,#'5',104$
+	ajmp	feedline
+3$:
+	cjne	a,#'3',4$
 	mov		r1,#ep0cmd
-	mov		a,#8
+	mov		r5,#8
 	ajmp	printbuf
-104$:
-	cjne	r7,#'6',105$
-	mov		r4,#100
-345$:
-	mov		r1,#ep0cmd
-	mov		a,#7
-	acall	printbuf
-	djnz	r4,345$
-	ret
-105$:
-	cjne	r7,#'n',106$
-	mov		buf_end,a
-	mov		buf_start,a
-	clr		full_buf
-106$:
+4$:
 	ret
 str_usb_start:
 	.db    9
@@ -259,21 +260,42 @@ str_usb_stop:
 	.ascii 'USB stop'
 ;===================================================================
 ; uart cseg
-
-mov_pointer:
+uart0_int:
 	push	acc
-	mov		a,buf_end
-	inc		a
-	cjne	a,buf_start,1$
-	setb	LED3
-	setb	full_buf
-	sjmp	2$
-1$:
-	clr		LED3
-	mov		buf_end,a
-2$:
+	setb	rs0
+	clr		rs1
+	jbc		TI0,uart_out_done
+	jbc		RI0,uart_in
+uart_int_exit:
 	pop		acc
-	ret
+	pop		psw
+	reti
+uart_in:
+	mov		a,SBUF0
+	mov		echo_char,a
+	setb	new_income
+	jbc		echo_broke,go_echo_char
+	setb	echo_flag
+	sjmp	uart_int_exit
+go_echo_char:
+	mov		SBUF0,echo_char
+	sjmp	uart_int_exit
+uart_out_done:
+; 优先显示串口输入
+	jbc		echo_flag,go_echo_char
+; 输出buf中的内容
+	jbc		full_buf,1$
+	mov		a,buf_start
+	cjne	a,buf_end,1$
+	setb	echo_broke
+	sjmp	uart_int_exit
+1$:
+	inc		buf_start
+	mov		a,buf_start
+	mov		r0,a
+	movx	a,@r0
+	mov		SBUF0,a
+	sjmp	uart_int_exit
 init_uart:
 	; 8 bit ignore stop, ignore 9th bit
 	mov		SCON0,#0b00010000
@@ -287,174 +309,105 @@ init_uart:
 	mov		buf_start,a
 	clr		full_buf
 	ret
-
-put_xbuf_to_uart:
-	mov		a,buf_start
-	cjne	a,buf_end,100$
+; r7 char to buf
+pipo_in:
+	jb		full_buf,uart_trigger		; buffer full
+	inc		buf_end
+	mov		a,buf_end
+	cjne	a,buf_start,2$
+	setb	full_buf
+2$:
+	mov		r0,a
+	mov		a,r7
+	movx	@r0,a
+uart_trigger:
+	jbc		echo_broke,1$
 	ret
-100$:
+1$:
 	inc		buf_start
+	mov		a,buf_start
 	mov		r0,a
 	movx	a,@r0
-	jbc		acc.7,200$
-	acall	fdcr
-	mov		dptr,#str_cp
-	mov		r5,a
-	acall	printstr
-	mov		a,r5
-	ajmp	printhex
-200$:
-	acall	fdcr
-	mov		r6,a
-300$:
-	mov		a,buf_start
-	cjne	a,buf_end,301$
-	ret
-301$:
-	inc		buf_start
-	mov		r0,a
-	movx	a,@r0
-	acall	printhex
-	djnz	r6,300$
-	ret
-	;2073.8
-uart_pipo:
-	jbc		RI0,117$
-	ret
-117$:
-	mov		a,SBUF0
 	mov		SBUF0,a
-	jnb		TI0,.
-	clr		TI0
-	mov		r7,a
-	ajmp	handler
+	clr		full_buf
+	ret
+; a
+checkpoint:
+	mov		r5,a
+	acall	feedline
+	mov		r7,#'!'
+	acall	pipo_in
+	mov		a,r5
+	ajmp	put_hex
 	
-printhex:
-	mov		r7,a
+; r1 address
+; r5 count
+printbuf:
+	acall	feedline
+1$:
+	mov		a,@r1
+	acall	put_hex
+	inc		r1
+	djnz	r5,1$
+	ret
+feedline:
+	mov		r7,#'\n'
+	acall	pipo_in
+	mov		r7,#'\r'
+	acall	pipo_in
+	ret
+; [in] a 
+put_hex:
+	mov		dptr,#hex_table
+	mov		r6,a
 	swap	a
 	anl		a,#0x0f
-	mov		dptr,#hex_table
 	movc	a,@a+dptr
-	mov		SBUF0,a
-
-	jnb		TI0,.
-	clr		TI0
-
-	mov		a,r7
-	anl		a,#0x0f
+	mov		r7,a
+	acall	pipo_in
+	mov		a,#0x0f
+	anl		a,r6
 	movc	a,@a+dptr
-	mov		SBUF0,a
-	jnb		TI0,.
-	clr		TI0
-	mov		SBUF0,#' '
-	jnb		TI0,.
-	clr		TI0
-	ret
-fdcr:
-	mov		SBUF0,#0x0a
-	jnb		TI0,.
-	clr		TI0
-	mov		SBUF0,#0x0d
-	jnb		TI0,.
-	clr		TI0
-	ret
-checkpoint:
-	jnb		full_buf,99$
-	ret
-99$:
-	mov		r0,buf_end
-	movx	@r0,a
-	acall	mov_pointer
-	ret
-	
-; dptr 字串地址
+	mov		r7,a
+	acall	pipo_in
+	mov		r7,#' '
+	ajmp	pipo_in
+; dptr string pointer
 printstr:
 	clr		a
 	movc	a,@a+dptr
+	mov		r6,a
+1$:
 	inc		dptr
-	mov		r7,a
-100$:
 	clr		a
 	movc	a,@a+dptr
-	inc		dptr
-	mov		SBUF0,a
-	jnb		TI0,.
-	clr		TI0
-	djnz	r7,100$
-	ret
-put_size:
-	jnb		full_buf,99$
-	ret
-99$:
-	mov		r0,buf_end
-	acall	mov_pointer
-	jnb		full_buf,199$
-	ret
-199$:
-	mov		a,#0x81
-	movx	@r0,a
-
-	mov		r0,buf_end
-	acall	mov_pointer
-	jnb		full_buf,299$
-	ret
-299$:
-	mov		a,byte1
-	movx	@r0,a
-	ret
-
-; [in]r1 数据地址
-; [in]a 长度
-printbuf:
-	jnb		full_buf,99$
-	ret
-99$:
-	mov		r6,a
-	setb	acc.7
-	mov		r0,buf_end
-	acall 	mov_pointer
-	jnb		full_buf,199$
-	ret
-199$:
-	movx	@r0,a
-
-100$:
-	mov		a,@r1
-	inc		r1
-	mov		r0,buf_end
-	acall 	mov_pointer
-	jnb		full_buf,299$
-	ret
-299$:
-	movx	@r0,a
-
-	djnz	r6,100$
+	mov		r7,a
+	acall	pipo_in
+	djnz	r6,1$
 	ret
 hex_table:
 	.ascii	'0123456789abcdef'
 str_cp:
-	.db 11
-	.ascii 'checkpoint '
+	.db 2
+	.ascii 'CP'
 
 ; uart code end
 ;===================================================================
 ;===================================================================
 ; usb code
 
-init_usb:
-	mov		EIE1,#0b00000010
+init_interrupt:
+	mov		EIE1,#0b00000010	; usb0 interrupt
+	setb	ES0					; uart0 interrupt
+	setb	PS0					; uart0 priority
 	ret
 usb0_int:
-; use bank 3
+; use bank 2
 	push	acc
 	push	b
 	push	dpl
 	push	dph
-
-
-;	mov		EMI0CN, #1
-	
-	setb	rs0
+	clr		rs0
 	setb	rs1
 
 
@@ -566,11 +519,11 @@ endpoint0:
 	mov		b,#((1<<DATAEND)|(1<<INPRDY))
 	acall	uwrite
 	mov		ep0_status,#EP_IDLE
-	mov		byte1,tx_size
-	ajmp	put_size
+	mov		a,tx_size
+	ajmp	put_hex
 4$:
-	mov		byte1,ep0_e0csr
-	acall	put_size
+	mov		a,ep0_e0csr
+	acall	put_hex
 	mov		a,#0x40
 	acall	checkpoint
 	ret
@@ -580,12 +533,12 @@ handle_incoming_packet:
 	mov		r7,#8
 	acall	fifo_iread
 
-;	mov		a,#E0CSR
-;	mov		b,#(1<<SOPRDY)
-;	acall	uwrite
+	mov		a,#E0CSR
+	mov		b,#(1<<SOPRDY)
+	acall	uwrite
 
 	mov		r1,#ep0cmd
-	mov		a,#8
+	mov		r5,#8
 	acall	printbuf
 
 	mov		a,ep0cmd+bmRequestType

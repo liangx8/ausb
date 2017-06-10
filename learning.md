@@ -60,7 +60,11 @@ endpoint0 中断发生的情况
 7      6      5     4     3       2     1      0
 SSUEND SOPRDY SDSTL SUEND DATAEND STSTL INPRDY OPRDY
 
+所有的控制传输必须以SETUP包开始，SETUP包类似于OUT包，
 
+Endpoint0 IN Transactions
+要求USB0传输数据给host的SETUP请求被收到时，1或者多个IN请求会被host发送出来。
+   对于第一个IN传输，设备固件装载IN包到Endpoint0 FIFO,并且设置INPRDY位
 
 1 数据包(OUT or SETUP) 已经收到并且loaded into ENDPOINT0 FIFO, OPRDY 位设置为1.
 2 IN 数据包被成功从 Endpoint0 FIFO unload 并且传输到host, INPRDY 被硬件重置0
