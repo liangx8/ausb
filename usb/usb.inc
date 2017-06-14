@@ -1,4 +1,9 @@
 
+EP0_PACKET_SIZE		.equ 0x40
+EP1_PACKET_SIZE		.equ 0x0a
+EP2_PACKET_SIZE 	.equ 0x0a
+
+
 ;; bRequest codes for standard requests
 GET_STATUS			.equ 0
 CLEAR_FEATURE		.equ 1

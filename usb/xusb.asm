@@ -9,10 +9,12 @@ LED3			.equ	P1.2
 LED4			.equ	P3.0
 
 
+HID_REPORT_SIZE	.equ	0x35
+
 ; }}}
 
 .area BITDATA1 (ABS,BIT)
-echo_flag:		.ds 1		;1 显示 echo_char, 0 不显示
+input_flag:		.ds 1		;1 显示 input_char, 0 不显示
 echo_broke:		.ds	1		;1 uart的输出中断链已经断开
 new_income:		.ds 1		; 
 
@@ -29,10 +31,11 @@ main_loop_cnt:	.ds 1
 
 ;===================================================================
 ; uart
+buf_start_h:	.ds 1
 buf_start:		.ds 1
 buf_end:		.ds 1
 
-echo_char:		.ds 1
+input_char:		.ds 1
 ; end uart
 ;===================================================================
 
@@ -40,9 +43,9 @@ echo_char:		.ds 1
 ;===================================================================
 ; usb
 ep0cmd:         .ds 8
-cmint:			.ds 1
-in1int:			.ds 1
-out1int:		.ds 1
+m_cmint:		.ds 1
+m_in1int:		.ds 1
+m_out1int:		.ds 1
 ep0_e0csr:		.ds 1
 
 ep0_status:		.ds 1
@@ -188,7 +191,7 @@ main:
 	setb	echo_broke
 	clr		full_buf
 	clr		new_income
-	clr		echo_flag
+	clr		input_flag
 	setb	EA
 	mov		dptr,#str_cp
 	acall	printstr
@@ -200,7 +203,9 @@ main_loop:
 	clr		TF0
 	djnz	main_loop_cnt,100$
 	cpl		LED1
+	jnb		usb_en,1$
 	cpl		LED2
+1$:
 	mov		main_loop_cnt,#50
 100$:
 	sjmp	main_loop
@@ -212,6 +217,10 @@ delay:
 2$:
 	djnz	r6,2$
 	djnz	r7,1$
+	ret
+short_delay:
+	mov		r7,#0xff
+	djnz	r7,.
 	ret
 power_up_echo:
 	jnb		TF0, power_up_echo
@@ -225,12 +234,12 @@ power_up_echo:
 	djnz	r7,power_up_echo
 	ret
 handler:
-	mov		c,echo_broke
-	mov		LED3,c
+;	mov		c,echo_broke
+;	mov		LED3,c
 	jbc		new_income,1$
 	ret
 1$:
-	mov		a,echo_char
+	mov		a,input_char
 	cjne	a,#'1',2$
 	jb		usb_en,4$
 	setb	usb_en
@@ -241,6 +250,7 @@ handler:
 2$:
 	cjne	a,#'2',3$
 	clr		usb_en
+	clr		LED3
 	mov		USB0XCN,#0
 	mov		dptr,#str_usb_stop
 	acall	printstr
@@ -260,6 +270,26 @@ str_usb_stop:
 	.ascii 'USB stop'
 ;===================================================================
 ; uart cseg
+inc_buf_start:
+	inc		buf_start
+	mov		a,buf_start
+	jnz		1$
+	mov		a,buf_start_h
+	inc		a
+	anl		a,#0x03
+	mov		buf_start_h,a
+1$:
+	ret
+inc_buf_end:
+	inc		buf_end
+	mov		a,buf_end
+	jnz		1$
+	mov		a,EMI0CN
+	inc		a
+	anl		a,#0x03
+	mov		EMI0CN,a
+1$:
+	ret
 uart0_int:
 	push	acc
 	setb	rs0
@@ -272,28 +302,34 @@ uart_int_exit:
 	reti
 uart_in:
 	mov		a,SBUF0
-	mov		echo_char,a
+	mov		input_char,a
 	setb	new_income
-	jbc		echo_broke,go_echo_char
-	setb	echo_flag
+	jbc		echo_broke,go_input_char
+	setb	input_flag
 	sjmp	uart_int_exit
-go_echo_char:
-	mov		SBUF0,echo_char
+go_input_char:
+	mov		SBUF0,input_char
 	sjmp	uart_int_exit
 uart_out_done:
 ; 优先显示串口输入
-	jbc		echo_flag,go_echo_char
+	jbc		input_flag,go_input_char
 ; 输出buf中的内容
 	jbc		full_buf,1$
 	mov		a,buf_start
 	cjne	a,buf_end,1$
+	mov		a,EMI0CN
+	cjne	a,buf_start_h,1$
 	setb	echo_broke
 	sjmp	uart_int_exit
 1$:
-	inc		buf_start
+	;inc		buf_start
+	acall	inc_buf_start
 	mov		a,buf_start
 	mov		r0,a
+	push 	EMI0CN
+	mov		EMI0CN,buf_start_h
 	movx	a,@r0
+	pop		EMI0CN
 	mov		SBUF0,a
 	sjmp	uart_int_exit
 init_uart:
@@ -312,10 +348,14 @@ init_uart:
 ; r7 char to buf
 pipo_in:
 	jb		full_buf,uart_trigger		; buffer full
-	inc		buf_end
+	;inc		buf_end
+	acall	inc_buf_end
 	mov		a,buf_end
 	cjne	a,buf_start,2$
+	mov		a,EMI0CN
+	cjne	a,buf_start_h,2$
 	setb	full_buf
+	setb	LED3
 2$:
 	mov		r0,a
 	mov		a,r7
@@ -324,12 +364,17 @@ uart_trigger:
 	jbc		echo_broke,1$
 	ret
 1$:
-	inc		buf_start
+	;inc		buf_start
+	acall	inc_buf_start
 	mov		a,buf_start
 	mov		r0,a
+	push	EMI0CN
+	mov		EMI0CN,buf_start_h
 	movx	a,@r0
-	mov		SBUF0,a
+	pop		EMI0CN
 	clr		full_buf
+	mov		SBUF0,a
+2$:
 	ret
 ; a
 checkpoint:
@@ -410,25 +455,29 @@ usb0_int:
 	clr		rs0
 	setb	rs1
 
-
 	mov		a,#CMINT
 	acall	uread
-	mov		cmint,b
+	mov		m_cmint,b
 	mov		a,#IN1INT
 	acall	uread
-	mov		in1int,b
+	mov		m_in1int,b
 	mov		a,#OUT1INT
 	acall	uread
-	mov		out1int,b
+	mov		m_out1int,b
 
-	mov		a,cmint
+	mov		a,m_cmint
 	jnb		acc+RSTINT,1$
 	mov		a,#0x10
 	acall	checkpoint
 	acall	ureset
 	sjmp	999$
 1$:
-	mov		a,in1int
+	jnb		acc+SUSINT,11$
+	mov		a,#0x14
+	acall	checkpoint
+	sjmp	999$
+11$:
+	mov		a,m_in1int
 	jnb		acc+EP0,2$
 	mov		a,#0x11
 	acall	checkpoint
@@ -439,15 +488,23 @@ usb0_int:
 	jnb		acc+IN1,3$
 	mov		a,#0x12
 	acall	checkpoint
+	acall	force_stall
 	sjmp	999$
 3$:
-	mov		a,out1int
-	jnb		acc+OUT1,4$
+	mov		a,m_out1int
+	jnb		acc+OUT2,4$
 	mov		a,#0x13
 	acall	checkpoint
+	acall	force_stall
 	sjmp	999$
 4$:
-	
+
+	mov		a,m_cmint
+	acall	put_hex
+	mov		a,m_in1int
+	acall	put_hex
+	mov		a,m_out1int
+	acall	put_hex
 	mov		a,#0x7f
 	acall	checkpoint
 999$:
@@ -459,11 +516,11 @@ usb0_int:
 	reti
 ureset:
 	mov		a,#POWER
-	mov		b,#0x01
-	acall	uwrite
+	mov		b,#0x81
 	mov		ep0_status,#EP_IDLE
 	mov		ep1_status,#EP_IDLE
-	ret
+	ajmp	uwrite
+
 endpoint0:
 	mov		a,#INDEX
 	clr		b			; target ep0
@@ -472,47 +529,53 @@ endpoint0:
 	acall	uread
 	mov		ep0_e0csr,b
 
-	mov		a,#EP_ADDRESS
-	cjne	a,ep0_status,10$
-	mov		a,#0x1f
-	acall	checkpoint
-	mov		ep0_status,#EP_IDLE
-	mov		a,#FADDR
-	mov		b,ep0cmd + wValue
-	ajmp	uwrite
-10$:
-	mov		a,ep0_e0csr
-	jz		4$
-	jnb		acc+SUEND,1$
-	mov		a,#0x41
-	acall	checkpoint
-	mov		ep0_status,#EP_IDLE
-	mov		a,#E0CSR
-	mov		b,#((1 << SSUEND) | (1<<DATAEND))
-	ajmp	uwrite
-;	mov		a,ep0_e0csr
-1$:
-	jnb		acc+STSTL,2$
+	mov		a,b
+	jnb		acc+STSTL,1$
 	mov		a,#0x42
 	acall	checkpoint
 	mov		ep0_status,#EP_IDLE
 	mov		a,#E0CSR
 	clr		b
 	ajmp	uwrite
-2$:
-	mov		a,#EP_IDLE
-	cjne	a,ep0_status,3$
+1$:
 
-	mov		a,#0x45
+	jnb		acc+SUEND,2$
+	mov		a,#0x41
 	acall	checkpoint
+	mov		ep0_status,#EP_IDLE
+	mov		a,#E0CSR
+	mov		b,#((1 << SSUEND) | (1<<DATAEND))
+	acall	uwrite
+;	mov		a,ep0_e0csr
+2$:
+
+	mov		a,#EP_ADDRESS
+	cjne	a,ep0_status,3$
+	mov		a,#0x1f
+	acall	checkpoint
+	mov		ep0_status,#EP_IDLE
+	mov		a,#FADDR
+	mov		b,ep0cmd + wValue
+	acall	uwrite
+	mov		a,#E0CSR
+;	mov		b,#((1<<SOPRDY)|(1<<DATAEND))  ; refer to http://community.silabs.com/t5/8-bit-MCU/when-writing-to-FADDR/td-p/63747
+                                           ; DATAEND is re
+	mov		b,#(1<<SOPRDY)
+	acall	uwrite
+3$:
+	mov		a,#EP_IDLE
+	cjne	a,ep0_status,4$
 
 	mov		a,ep0_e0csr
-	jnb		acc+OPRDY,3$
+	jnb		acc+OPRDY,4$
 	acall	handle_incoming_packet
 	
-3$:
+4$:
 	mov		a,#EP_TX
-	cjne	a,ep0_status,4$
+	cjne	a,ep0_status,5$
+	mov		a,#E0CSR
+	mov		b,#(1<<SOPRDY)
+	acall	uwrite
 	clr		a					; set fifo address to endpoint0
 	acall	fifo_cwrite
 	mov		a,#E0CSR
@@ -521,25 +584,28 @@ endpoint0:
 	mov		ep0_status,#EP_IDLE
 	mov		a,tx_size
 	ajmp	put_hex
-4$:
+5$:
 	mov		a,ep0_e0csr
 	acall	put_hex
 	mov		a,#0x40
-	acall	checkpoint
-	ret
+	ajmp	checkpoint
+	;ret
 handle_incoming_packet:
 	mov		r0,#ep0cmd
 	clr		a				; endpoint 0
 	mov		r7,#8
 	acall	fifo_iread
 
-	mov		a,#E0CSR
-	mov		b,#(1<<SOPRDY)
-	acall	uwrite
+;	mov		a,#E0CSR
+;	mov		b,#(1<<SOPRDY)
+;	acall	uwrite
 
 	mov		r1,#ep0cmd
 	mov		r5,#8
 	acall	printbuf
+
+;	acall	short_delay
+
 
 	mov		a,ep0cmd+bmRequestType
 	anl		a,#0x7f
@@ -549,6 +615,7 @@ handle_incoming_packet:
 	mov		a,ep0cmd + bRequest
 	cjne	a,#GET_REPORT,1$
 	mov		a,#0x50
+	acall	force_stall
 	ajmp	checkpoint
 1$:
 	cjne	a,#SET_REPORT,2$
@@ -561,7 +628,8 @@ handle_incoming_packet:
 3$:
 	cjne	a,#SET_IDLE,4$
 	mov		a,#0x53
-	ajmp	checkpoint
+	acall	checkpoint
+	ajmp	set_idle
 4$:
 	cjne	a,#GET_PROTOCOL,5$
 	mov		a,#0x54
@@ -597,21 +665,22 @@ standard_request:
 	ret
 
 setup_data_in:
+	mov		ep0_status,#EP_TX
 	mov		a,ep0cmd + bRequest
 	cjne	a,#GET_DESCRIPTOR,20$
 	acall	get_descriptors
-
 	mov		a,#EP_STALL
 	cjne	a,ep0_status,10$
 20$:
+	cjne	a,#GET_STATUS,30$
+	mov		a,#0x35
+	ajmp	checkpoint
+30$:
 	acall	force_stall
 	mov		a,#0x56
 	ajmp	checkpoint
-	ret
 10$:
-	mov		a,#E0CSR
-	mov		b,#1<<SOPRDY
-	ajmp	uwrite
+	ret
 
 clear_feature:
 	jb		configured,2$
@@ -637,12 +706,8 @@ clear_feature:
 	mov		a,#INDEX
 	clr		b				; RESET endpoint to 0
 	acall	uwrite
-;	mov		a,#EP_STALL
-;	cjne	a,ep0_status,4$
-;	ret
-;4$:
 	mov		a,#E0CSR
-	mov		b,#((1<<SOPRDY) | (1 << DATAEND))
+	mov		b,#((1<<SOPRDY)|(1 << DATAEND))
 	ajmp	uwrite
 set_address:
 	mov		ep0_status,#EP_ADDRESS
@@ -650,13 +715,13 @@ set_address:
 ;	mov		b,ep0cmd + wValue
 ;	acall	uwrite
 	mov		a,#E0CSR
-	mov		b,#((1<<SOPRDY) | (1<<DATAEND))
+	mov		b,#((1<<SOPRDY)|(1 << DATAEND))
 	ajmp	uwrite
 ;   ret
 set_configuration:
 	setb	configured
 	mov		a,#E0CSR
-	mov		b,#((1<<SOPRDY) | (1<<DATAEND))
+	mov		b,#((1<<SOPRDY)|(1 << DATAEND))
 	;mov		ep0_status,#EP_IDLE
 	ajmp	uwrite
 ;	ret
@@ -665,23 +730,20 @@ get_descriptors:
 	cjne	a,#DSC_DEVICE,1$			; 1
 	mov		a,#0x20
 	acall	checkpoint
-	mov		ep0_status,#EP_TX
-	mov		dptr,#descriptor_device
-	mov		c_ptr,dpl
-	mov		c_ptr+1,dph
+
+	mov		c_ptr,#descriptor_device
+	mov		c_ptr+1,#descriptor_device >> 8
 	mov		tx_size,#18
 	ret
 1$:
 	cjne	a,#DSC_CONFIG,2$			; 2
 	mov		a,#0x21
 	acall	checkpoint
-	mov		ep0_status,#EP_TX
 ;	mov		a,#E0CSR
 ;	mov		b,#(1<<SOPRDY)
 ;	acall	uwrite
-	mov		dptr,#descriptor_cfg
-	mov		c_ptr,dpl
-	mov		c_ptr+1,dph
+	mov		c_ptr,#descriptor_cfg
+	mov		c_ptr+1,#descriptor_cfg >> 8
 	mov		tx_size,#0x29
 	mov		a,ep0cmd + wLength
 	cjne	a,tx_size,. + 3
@@ -691,7 +753,7 @@ get_descriptors:
 	ret
 2$:
 	cjne	a,#DSC_STRING,3$			; 3
-	mov		ep0_status,#EP_TX
+
 	mov		a,#0x22
 	acall	checkpoint
 ;	mov		a,#E0CSR
@@ -717,15 +779,13 @@ get_descriptors:
 	mov		a,#0x25
 	ajmp	checkpoint
 6$:
-;81 06 00 22 00 00 41 00
+;81 06 00 22 00 00 75 00
 	cjne	a,#DSC_HIDREPORT,7$			; 5
-	mov		ep0_status,#EP_TX
 	mov		a,#0x26 
 	acall	checkpoint
-	mov		dptr,#descriptor_hid_report
-	mov		c_ptr,dpl
-	mov		c_ptr+1,dph
-	mov		tx_size,#0x35
+	mov		c_ptr,#descriptor_hid_report
+	mov		c_ptr+1,#descriptor_hid_report>>8
+	mov		tx_size,#HID_REPORT_SIZE
 	ret
 7$:
 	;mov		r1,#ep0cmd
@@ -739,6 +799,14 @@ force_stall:
 	mov		ep0_status,#EP_STALL
 	mov		a,#E0CSR
 	mov		b,#1<<SDSTL
+	ajmp	uwrite
+set_idle:
+	mov		a,#EP_STALL
+	cjne	a,ep0_status,1$
+	ret
+1$:
+	mov		b,#((1<<DATAEND)|(1<<SOPRDY))
+	mov		a,#E0CSR
 	ajmp	uwrite
 
 ; 要求不能a超过127
@@ -868,9 +936,9 @@ descriptor_device:
 .db   0x00                      ; bDeviceClass
 .db   0x00                      ; bDeviceSubClass
 .db   0x00                      ; bDeviceProtocol
-.db   64                        ; bMaxPacketSize0
+.db   EP0_PACKET_SIZE           ; bMaxPacketSize0
 .db   0x89, 0x19                ; idVendor (lsb first)
-.db   0x04, 0x06                ; idProduct (lsb first)
+.db   0x64, 0x00                ; idProduct (lsb first)
 .db   0x00, 0x00                ; bcdDevice (lsb first)
 .db   0x01                      ; iManufacturer
 .db   0x02                      ; iProduct
@@ -881,7 +949,7 @@ descriptor_cfg:
 
 .db   0x09                      ; Length
 .db   0x02                      ; Type
-.db   0x29, 0x00                ; TotalLength (lsb first) 9 + 9 +9 +7 +7
+.db   0x29, 0x00                ; TotalLength (lsb first) 9 + 9 + 9 + 7 +7
 .db   0x01                      ; NumInterfaces
 .db   0x01                      ; bConfigurationValue
 .db   0x04                      ; iConfiguration
@@ -893,7 +961,7 @@ descriptor_cfg:
 .db   0x04                      ; bDescriptorType
 .db   0x00                      ; bInterfaceNumber
 .db   0x00                      ; bAlternateSetting
-.db   0x01                      ; bNumEndpoints
+.db   0x02                      ; bNumEndpoints
 .db   0x03                      ; bInterfaceClass
 .db   0x00                      ; bInterfaceSubClass
 .db   0x00                      ; bInterfaceProcotol
@@ -905,21 +973,21 @@ descriptor_cfg:
 .db   0							; bCountryCode
 .db   1							; bNumDescriptors
 .db   0x22						; bDescriptorType
-.db   0x35,0x00					; wDescriptorLength(report)
+.db   HID_REPORT_SIZE,0x00		; wDescriptorLength(report)
 ; IN endpoint1
 .db   7							; bLength
 .db   5							; bDescriptorType
 .db   0x81						; bEndpointAddress
 .db   0x03						; bmAttributes(Interrupt)
-.db   0x0b,0					; MaxPacketSize
+.db   0xff & EP1_PACKET_SIZE,EP1_PACKET_SIZE>>8		; MaxPacketSize
 .db   10						; bInterval
 ; OUT endpoint1
-.db   0x07                         ; bLength
-.db   0x05                         ; bDescriptorType
-.db   0x01                         ; bEndpointAddress
-.db   0x03                         ; bmAttributes
-.db   0x0b,0	                 	; MaxPacketSize (LITTLE ENDIAN)
-.db   10                           ; bInterval
+.db   0x07                      ; bLength
+.db   0x05                      ; bDescriptorType
+.db   0x02                      ; bEndpointAddress
+.db   0x03                      ; bmAttributes
+.db   0xff & EP2_PACKET_SIZE,EP2_PACKET_SIZE>>8		; MaxPacketSize (LITTLE ENDIAN)
+.db   10                        ; bInterval
 
 
 ; 53 = 0x35

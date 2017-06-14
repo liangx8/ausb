@@ -71,3 +71,7 @@ Endpoint0 IN Transactions
 3 一次IN transaction 完成(this interrupt generated during the status stage of the transaction).
 4 由于一次 protocal violation 导致的控制transaction 结束，硬件设置 STSTL ,
 5 在软件设置DATAEND之前，一次控制传输结束，硬件设置 SUEND位1.
+
+C程序，暂停开发
+汇编程序
+计算机可以认识设备.在windows CLEAR_FEATURE这一步不断重复。在LINUX下，会去到GET_REPORTER，暂时停止开发，

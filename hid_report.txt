@@ -34,4 +34,5 @@ REPORT DESCRIPORT 中的ITEM定义
 1011~1111 10nn Local Reserved
 
 
-report.raw 是C8051F的烧写器的固件中用BUS HOUND提取出来的REPORT DESCRIPORT.
+在USB.ORG上游个可以生产REPORT DESCRIPTOR的软件，不需要手工拼砌。http://www.usb.org/developers/docs/docs/hidpage/
+HID Resources -> HID Descriptor Tool
