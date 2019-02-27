@@ -1,6 +1,11 @@
+/*
+    FIXME: 先实现usart串口功能用于debug程序
+ */
+
 //#include <stdint.h>
 #include <stm32f1xx.h>
 #include <string.h>
+#include "usart.h"
 #include "common.h"
 /*
 实验板上的蓝色LED接B12 串到3.3v，高电平时灯灭，低电平灯亮
@@ -105,8 +110,11 @@ void start_echo(void)
 int main(void) __attribute__ ((section(".adv_main"))) __attribute__ ((naked));
 int main(void)
 {
+	SysTick_Config(0x1000000);
 	start_echo();
-
+	while(1){
+		usart1_event();
+	}
 }
 /*page 160*/
 /*
@@ -162,4 +170,5 @@ void mcu_init(void)
 	GPIOB->CRH = GPIOB_CRH_VALUE;
 	GPIOB->ODR = GPIOB_ODR_VALUE;
 	GPIOC->CRH = GPIO_CRH_MODE13;
+	usart1_config();
 }

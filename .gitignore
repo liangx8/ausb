@@ -3,12 +3,5 @@
 *.exe
 .gitattributes
 *.lst
-*.ref
-*.sym
-*.ihx
-usb_c/*.asm
-**/*.lk
-**/*.map
-**/*.mem
-**/*.rel
-**/*.rst
+**/*.elf
+**/*.hex
