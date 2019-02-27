@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "sound.h": "c",
+        "tftdef.h": "c",
+        "usart.h": "c"
+    }
+}
