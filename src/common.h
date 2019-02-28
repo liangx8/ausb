@@ -17,6 +17,5 @@ typedef struct {
 _BitBand *ramBitBand(void *);
 
 
-void ncopy(uint8_t *dst,const uint8_t *src,uint32_t size);
 
 #endif

@@ -55,6 +55,15 @@ void Stm32_Clock_Init(void)
   // 在72Mhz，PLCLK必须除6 ，文档要求ADC频率不能超过14MHZ
 	BITBAND(RCC->CFGR)->bit[RCC_CFGR_ADCPRE_Pos+1]=1;
 
+
+  /* SysTick setting */
+  //SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk;
+  // 系统计时用8分频, 声音延时用，最小单位1/32啪，
+  //SysTick->CTRL = SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk;
+  //SysTick->CTRL = 0;
+  //SysTick_Config(281250);
+	SysTick_Config(0x1000000);
+
 }
 
 /*------------------------------------------------------------
@@ -62,58 +71,46 @@ void Stm32_Clock_Init(void)
 ------------------------------------------------------------*/
 void RCC_DeInit(void)
 {
-  /* disable all interruption */
-  /* NVIC_ICER0 */
-  NVIC->ICER[0]=0xffffffff;
-  /* NVIC_ICER1 */
-  NVIC->ICER[1]=0xffffffff;
-  /* NVIC_ICER1 */
-  NVIC->ICER[2]=0xffffffff;
-  /* enable all interruption */
-  //NVIC->ISER[0]=0xffffffff;
-  //NVIC->ISER[1]=0xffffffff;
-  //NVIC->ISER[2]=0xffffffff;
-  /* SysTick setting */
-  //SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk;
-  // 系统计时勇8分频, 声音延时用，最小单位1/32啪，
-  //SysTick->CTRL = SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk;
-  SysTick->CTRL = 0;
-  SysTick->LOAD = 281250;
+	/* disable all interruption */
+	/* NVIC_ICER0 */
+	NVIC->ICER[0]=0xffffffff;
+	/* NVIC_ICER1 */
+	NVIC->ICER[1]=0xffffffff;
+	/* NVIC_ICER1 */
+	NVIC->ICER[2]=0xffffffff;
+	/* enable all interruption */
+	//NVIC->ISER[0]=0xffffffff;
+	//NVIC->ISER[1]=0xffffffff;
+	//NVIC->ISER[2]=0xffffffff;
 
-  RCC->APB2RSTR = 0x00000000;//外设复位
-  RCC->APB1RSTR = 0x00000000;
-  RCC->AHBENR = 0x00000014;  //flash时钟,闪存时钟使能.DMA时钟关闭
-  RCC->APB2ENR = 0x00000000; //外设时钟关闭.
-  RCC->APB1ENR = 0x00000000;
-  RCC->CR |= 0x00000001;     //使能内部高速时钟HSION
-  RCC->CFGR &= 0xF8FF0000;   //复位SW[1:0],HPRE[3:0],PPRE1[2:0],PPRE2[2:0],ADCPRE[1:0],MCO[2:0]
-  RCC->CR &= 0xFEF6FFFF;     //复位HSEON,CSSON,PLLON
-  RCC->CR &= 0xFFFBFFFF;     //复位HSEBYP
-  RCC->CFGR &= 0xFF80FFFF;   //复位PLLSRC, PLLXTPRE, PLLMUL[3:0] and USBPRE
-  RCC->CIR = 0x00000000;     //关闭所有中断
+	RCC->APB2RSTR = 0x00000000;//外设复位
+	RCC->APB1RSTR = 0x00000000;
+	RCC->AHBENR = 0x00000014;  //flash时钟,闪存时钟使能.DMA时钟关闭
+	RCC->APB2ENR = 0x00000000; //外设时钟关闭.
+	RCC->APB1ENR = 0x00000000;
+	RCC->CR |= 0x00000001;     //使能内部高速时钟HSION
+	RCC->CFGR &= 0xF8FF0000;   //复位SW[1:0],HPRE[3:0],PPRE1[2:0],PPRE2[2:0],ADCPRE[1:0],MCO[2:0]
+	RCC->CR &= 0xFEF6FFFF;     //复位HSEON,CSSON,PLLON
+	RCC->CR &= 0xFFFBFFFF;     //复位HSEBYP
+	RCC->CFGR &= 0xFF80FFFF;   //复位PLLSRC, PLLXTPRE, PLLMUL[3:0] and USBPRE
+	RCC->CIR = 0x00000000;     //关闭所有中断
 }
-/*
-void SysTick_handler(void)
-{
-  //BITBAND(GPIOC->ODR)->bit[13] ++;
-}
-*/
 void start_echo(void)
 {
-  const uint32_t total=0x3ffff;
-  for(uint32_t x=0;x< 20 * total;x++){
-	if (x & total) continue;
-	BITBAND(GPIOC->ODR)->bit[13] ++;
-  }
-  BITBAND(GPIOC->ODR)->bit[13] = 1;
+	for(int x=0;x<20;x++){
+		for(uint32_t y=0;y<0x40000;y++){
+			__NOP();
+		}
+		BITBAND(GPIOB->ODR)->bit[12] ++;
+	}
+	BITBAND(GPIOB->ODR)->bit[12] = 1;
 }
 int main(void) __attribute__ ((section(".adv_main"))) __attribute__ ((naked));
 int main(void)
 {
-	SysTick_Config(0x1000000);
 	start_echo();
 	while(1){
-		usart1_event();
+		
 	}
 }
 /*page 160*/
@@ -147,15 +144,13 @@ int main(void)
 1 开启afio时钟
 2 使能外设IO PORTa,b,c时钟
 3 USART1 使能
-4 adc1 enable
 */
-#define RCC_APB2ENR_VALUE RCC_APB2ENR_USART1EN | RCC_APB2ENR_IOPAEN | RCC_APB2ENR_IOPBEN | RCC_APB2ENR_IOPCEN | RCC_APB2ENR_AFIOEN | RCC_APB2ENR_ADC1EN | RCC_APB2ENR_TIM1EN
+#define RCC_APB2ENR_VALUE RCC_APB2ENR_USART1EN | RCC_APB2ENR_IOPAEN | RCC_APB2ENR_IOPBEN | RCC_APB2ENR_IOPCEN | RCC_APB2ENR_AFIOEN
 /*
  * 1 PWREN
  * 2 BKPEN
- * 3 USART2EN
  */
-#define RCC_APB1ENR_VALUE RCC_APB1ENR_PWREN | RCC_APB1ENR_BKPEN | RCC_APB1ENR_USART2EN
+#define RCC_APB1ENR_VALUE RCC_APB1ENR_PWREN | RCC_APB1ENR_BKPEN
 //#define RCC_APB2ENR_VALUE RCC_APB2ENR_IOPAEN | RCC_APB2ENR_IOPBEN | RCC_APB2ENR_IOPCEN | RCC_APB2ENR_AFIOEN
 void mcu_init(void)
 {

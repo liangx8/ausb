@@ -30,8 +30,6 @@ int usart1_get(void){
 }
 void usart1_config(void)
 {
-	NVIC_EnableIRQ(USART1_IRQn);
-	NVIC_SetPriority(USART1_IRQn,2);
 	// 设备的频率还需要设置RCC->CFGR.PPRE1/2的分频才能准确
 	// 由于设备的频率被设置成/2分频了。因此之前BRR被设置错误了
 	USART1->BRR = 0x271; // 115200 baudrate at 72Mhz
@@ -40,6 +38,8 @@ void usart1_config(void)
 	BITBAND(USART1->CR1)->bit[USART_CR1_UE_Pos]=1;
 	u1.tail=0;
 	u1.head=0;
+	NVIC_EnableIRQ(USART1_IRQn);
+	NVIC_SetPriority(USART1_IRQn,2);
 }
 
 void USART1_handler(void)
@@ -51,12 +51,4 @@ void USART1_handler(void)
 //	if((USART1->SR & USART_SR_TXE) == USART_SR_TXE){
 //		u1.out(&u1,&USART1->DR);
 //	}
-}
-void usart1_event(void){
-	if(u1.tail != u1.head){
-		if(USART1->SR & USART_SR_TXE){
-			USART1->DR=u1.buf[u1.tail];
-			u1.tail++;
-		}
-	}
 }
