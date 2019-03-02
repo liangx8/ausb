@@ -16,6 +16,18 @@ typedef struct {
 // 內存的bitband由於编译器的原因，必须设计为在运行时计算位置
 _BitBand *ramBitBand(void *);
 
+union DWORD
+{
+  /* data */
+  uint32_t dw;
+  uint8_t b[4];
+};
+union WORD
+{
+  /* data */
+  uint16_t w;
+  uint8_t b[2]; 
+};
 
 
 #endif

@@ -1,6 +1,3 @@
-/*
-    FIXME: 先实现usart串口功能用于debug程序
- */
 
 //#include <stdint.h>
 #include <stm32f1xx.h>
@@ -52,16 +49,16 @@ void Stm32_Clock_Init(void)
 	// 设置 APB2 的 PRESCALER 为/1,
 	//BITBAND(RCC->CFGR)->bit[RCC_CFGR_PPRE2_Pos+2]=0;
 
-  // 在72Mhz，PLCLK必须除6 ，文档要求ADC频率不能超过14MHZ
+	// 在72Mhz，PLCLK必须除6 ，文档要求ADC频率不能超过14MHZ
 	BITBAND(RCC->CFGR)->bit[RCC_CFGR_ADCPRE_Pos+1]=1;
 
 
-  /* SysTick setting */
-  //SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk;
-  // 系统计时用8分频, 声音延时用，最小单位1/32啪，
-  //SysTick->CTRL = SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk;
-  //SysTick->CTRL = 0;
-  //SysTick_Config(281250);
+	/* SysTick setting */
+	//SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk;
+	// 系统计时用8分频, 声音延时用，最小单位1/32啪，
+	//SysTick->CTRL = SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk;
+	//SysTick->CTRL = 0;
+	//SysTick_Config(281250);
 	SysTick_Config(0x1000000);
 
 }
@@ -105,12 +102,28 @@ void start_echo(void)
 	}
 	BITBAND(GPIOB->ODR)->bit[12] = 1;
 }
+// `Welcome' size: 9
+const uint8_t welcome[]={0x57,0x65,0x6c,0x63,0x6f,0x6d,0x65,0x0a,0x0d};
+
 int main(void) __attribute__ ((section(".adv_main"))) __attribute__ ((naked));
+// main方法使用了naked属性定义，因此不要在函数体内使用任何栈变量
+union DWORD sqr;
 int main(void)
 {
 	start_echo();
+	usart1_puts(welcome,9);
+	int idx=0;
+	usart1_hex(0x12345678);
 	while(1){
-		
+		int c;
+		if ((c=usart1_get()) > 0){
+			sqr.b[idx]=c;
+			idx ++;
+			if (idx==4) {
+				idx=0;
+				usart1_hex(sqr.dw);
+			}
+		}
 	}
 }
 /*page 160*/
@@ -118,24 +131,24 @@ int main(void)
 	a2/ TX2 CNF2 = 10 MODE2 = 11
 	a3/ RX2 CNF3 = 01 MODE3 = 00
 	ohters output push-pull */
-#define GPIOA_CRL_VALUE GPIO_CRL_MODE0 | GPIO_CRL_MODE1 | GPIO_CRL_CNF2_1 | GPIO_CRL_MODE2 | GPIO_CRL_CNF3_0 | GPIO_CRL_MODE4 | GPIO_CRL_MODE5 | GPIO_CRL_MODE6
+#define GPIOA_CRL_VALUE GPIO_CRL_MODE0 | GPIO_CRL_MODE1 | GPIO_CRL_MODE2 | GPIO_CRL_MODE3 | GPIO_CRL_MODE4 | GPIO_CRL_MODE5 | GPIO_CRL_MODE6
 /* 
 	a9/ TX1  Alternate function out push-pull CNF9 = 10 MODE9=11
 	a10/ RX1 input float CNF10= 01 MODE10 = 00
-	a8 alternate function output push-pull for BEEP
+
 	a11,a12,a15 output push-pull
 	a13,a14 swd port use default
 	a7 adc1 ch7
 */
-#define GPIOA_CRH_VALUE GPIO_CRH_MODE8 | GPIO_CRH_CNF8_1 | GPIO_CRH_CNF9_1 | GPIO_CRH_MODE9 | GPIO_CRH_CNF10_0 | GPIO_CRH_MODE11 | GPIO_CRH_MODE12 | GPIO_CRH_CNF13_0 | GPIO_CRH_CNF14_0 | GPIO_CRH_MODE15
+#define GPIOA_CRH_VALUE GPIO_CRH_MODE8 | GPIO_CRH_CNF9_1 | GPIO_CRH_MODE9 | GPIO_CRH_CNF10_0 | GPIO_CRH_MODE11 | GPIO_CRH_MODE12 | GPIO_CRH_CNF13_0 | GPIO_CRH_CNF14_0 | GPIO_CRH_MODE15
 #define GPIOA_ODR_VALUE 0
 //#define GPIOA_CRH_VALUE GPIO_CRH_MODE8 | GPIO_CRH_MODE9 | GPIO_CRH_CNF10_0 | GPIO_CRH_MODE11 | GPIO_CRH_MODE12 | GPIO_CRH_CNF13_0 | GPIO_CRH_CNF14_0 | GPIO_CRH_MODE15
 /*
-  all but B12,B13,B14 GPIOB output push-pull
-  B12 button
-  B13,B14 left and right
-  B12,B13,B14,B15 work on CNF = 00 MODE=11 ODR=0 output push-pull
-  b0 adc1 ch8
+	all but B12,B13,B14 GPIOB output push-pull
+	B12 button
+	B13,B14 left and right
+	B12,B13,B14,B15 work on CNF = 00 MODE=11 ODR=0 output push-pull
+	b0 adc1 ch8
 */
 #define GPIOB_CRL_VALUE GPIO_CRL_MODE1 | GPIO_CRL_MODE2 | GPIO_CRL_MODE3 | GPIO_CRL_MODE4 | GPIO_CRL_MODE5 | GPIO_CRL_MODE6 | GPIO_CRL_MODE7
 #define GPIOB_CRH_VALUE GPIO_CRH_MODE8 | GPIO_CRH_MODE9 | GPIO_CRH_MODE10 | GPIO_CRH_MODE11 | GPIO_CRH_MODE12 | GPIO_CRH_MODE13 | GPIO_CRH_MODE14 | GPIO_CRH_MODE15
