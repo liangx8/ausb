@@ -67,8 +67,8 @@ Default_handler:
 .long	DMA1_CHN6_handler		/* 16 0x0800 0080 */
 .long	DMA1_CHN7_handler		/* 17 0x0800 0084 */
 .long	ADC1_2_handler		/* 18 0x0800 0088 */
-.long	CAN1_TX_handler		/* 19 0x0800 008c */
-.long	CAN1_RX0_handler		/* 20 0x0800 0090 */
+.long	USB_HP_CAN1_TX_handler		/* 19 0x0800 008c */
+.long	USB_LP_CAN1_RX0_handler		/* 20 0x0800 0090 */
 .long	CAN1_RX1_handler		/* 21 0x0800 0094 */
 .long	CAN1_SCE_handler		/* 22 0x0800 0098 */
 .long	EXTI9_5_handler		/* 23 0x0800 009c */
@@ -90,7 +90,7 @@ Default_handler:
 .long	USART3_handler		/* 39 0x0800 00dc */
 .long	EXTI15_10_handler		/* 40 0x0800 00e0 */
 .long	RTCAlarm_handler		/* 41 0x0800 00e4 */
-.long	OTG_FS_WKUP_handler		/* 42 0x0800 00e8 */
+.long	USBWakeUp_handler		/* 42 0x0800 00e8 */
 .long	0		/* 43 0x0800 00ec Reserved*/
 .long	0		/* 44 0x0800 00f0 Reserved*/
 .long	0		/* 45 0x0800 00f4 Reserved*/
@@ -116,6 +116,7 @@ Default_handler:
 .long	CAN2_RX1_handler		/* 65 0x0800 0144 */
 .long	CAN2_SCE_handler		/* 66 0x0800 0148 */
 .long	OTG_FS_handler		/* 67 0x0800 014c */
+
 
 /*.weak Reset_handler
 .thumb_set Reset_handler,Default_handler
@@ -176,10 +177,10 @@ Default_handler:
 .thumb_set DMA1_CHN7_handler,Default_handler
 .weak ADC1_2_handler
 .thumb_set ADC1_2_handler,Default_handler
-.weak CAN1_TX_handler
-.thumb_set CAN1_TX_handler,Default_handler
-.weak CAN1_RX0_handler
-.thumb_set CAN1_RX0_handler,Default_handler
+.weak USB_HP_CAN1_TX_handler
+.thumb_set USB_HP_CAN1_TX_handler,Default_handler
+.weak USB_LP_CAN1_RX0_handler
+.thumb_set USB_LP_CAN1_RX0_handler,Default_handler
 .weak CAN1_RX1_handler
 .thumb_set CAN1_RX1_handler,Default_handler
 .weak CAN1_SCE_handler
@@ -222,8 +223,8 @@ Default_handler:
 .thumb_set EXTI15_10_handler,Default_handler
 .weak RTCAlarm_handler
 .thumb_set RTCAlarm_handler,Default_handler
-.weak OTG_FS_WKUP_handler
-.thumb_set OTG_FS_WKUP_handler,Default_handler
+.weak USBWakeUp_handler
+.thumb_set USBWakeUp_handler,Default_handler
 .weak TIM5_handler
 .thumb_set TIM5_handler,Default_handler
 .weak SPI3_handler

@@ -20,8 +20,15 @@ struct {
 	uint8_t buf[256];
 
 }u1;
-
-
+void usart1_putc(char);
+void usart1_putsz(const char *sz)
+{
+	const char *p=sz;
+	while(*p){
+		usart1_putc(*p);
+		p++;
+	}
+}
 int usart1_get(void){
 	if(0xff00 & u1.in){
 		return -1;

@@ -1,6 +1,6 @@
 	.syntax unified
 	.text
-	.global usart1_put_byte,usart1_puts,usart1_hex
+	.global usart1_putc,usart1_puts,usart1_hex
 /*
 struct u1
 struct {
@@ -20,11 +20,11 @@ struct {
  * 把一字节放到缓存中，如果缓存满(MAX - 1)，就会阻塞
  * r0, one byte
  */
-	.func usart1_put_byte
+	.func usart1_putc
 	.thumb_func
-	.type usart1_put_byte, %function
+	.type usart1_putc, %function
 	.align
-usart1_put_byte:
+usart1_putc:
 	ldr		r1,=u1
 	adds	r3,r1,#buf
 	ldrb	r2,[r1,#head]
@@ -42,7 +42,7 @@ usart1_put_byte:
 	strb	r3,[r2,#28]
 
 	bx		lr
-	.size usart1_put_byte, . - usart1_put_byte
+	.size usart1_putc, . - usart1_putc
 	.endfunc
 
 	.func usart1_puts
@@ -57,7 +57,7 @@ usart1_puts:
 @	ldr		r1,=u1
 1:
 	ldrb	r0,[r4],#1
-	bl		usart1_put_byte
+	bl		usart1_putc
 	cmp		r4,r5
 	bne		1b
 	pop		{r4,r5,pc}
@@ -81,12 +81,12 @@ usart1_hex:
 	lsrs	r0,r4,#4
 	ands	r0,r0,#0x0f
 	ldr		r0,[r6,r0]
-	bl		usart1_put_byte
+	bl		usart1_putc
 	ands	r0,r4,#0x0f
 	ldr		r0,[r6,r0]
-	bl		usart1_put_byte
+	bl		usart1_putc
 	movs	r0,#' '
-	bl		usart1_put_byte
+	bl		usart1_putc
 	lsrs	r4,r4,#8
 	subs	r5,#1
 	bne		1b

@@ -1,4 +1,5 @@
 #include <stm32f1xx.h>
+#include "usart.h"
 #include "common.h"
 /*
     RM0008 page 167 table 29 USB
@@ -12,6 +13,7 @@ void usb_config(void)
 {
     // USB clock enable
     BITBAND(RCC->APB1ENR)->bit[RCC_APB1ENR_USBEN_Pos]=1;
+    NVIC_EnableIRQ(USB_LP_CAN1_RX0_IRQn);
     // page 629 23.4.2 System and power-on reset
     // 这页的内容有描述上电如何设置USB,但是看不懂
     /*
@@ -37,4 +39,42 @@ CNTR寄存器中的FRES位）。 清除ISTR寄存器然后删除任何杂散
 缓冲区等）。 然后，该过程将继续进行USB重置情况（另请参阅
 段）。
     */
+
 }
+
+/*
+ *page 628 interrupt mapper
+ * - USB low-priority interrupt (Channel 20): Triggered by all USB events (Correct
+ *   transfer, USB reset, etc.). The firmware has to check the interrupt source before
+ *   serving the interrupt.
+ * - USB high-priority interrupt (Channel 19): Triggered only by a correct transfer event
+ *   for isochronous and double-buffer bulk transfer to reach the highest possible
+ *   transfer rate.
+ * - USB wakeup interrupt (Channel 42): Triggered by the wakeup event from the USB
+ *   Suspend mode.
+ */
+/*
+ * USB low-priority interrupt (Channel 20)
+ */
+void USB_LP_CAN1_RX0_handler(void)
+{
+    usart1_putsz("USB interrupt\r\n");
+}
+/*
+ * USB wakeup interupt (Channel 42)
+ */
+void USBWakeUp_handler(void)
+{
+    usart1_putsz("Wake up\r\n");
+}
+/*
+arm-none-eabi-gcc noversion nomachine -mcpu=cortex-m3 -mthumb -Wall -ffunction-sections -g -O3 -c 
+-DSTM32F103C8 -DSTM32F10X_MD -DUSE_STDPERIPH_DRIVER -D__ASSEMBLY__ 
+-I..\..\..\workspace\Example_USB_Keyboard\stm_lib\inc 
+-I..\..\..\workspace 
+-I..\..\..\workspace\Example_USB_Keyboard\cmsis 
+-I..\..\..\workspace\Example_USB_Keyboard\stm_lib 
+-I..\..\..\workspace\Example_USB_Keyboard\cmsis_boot 
+-I..\..\..\workspace\Example_USB_Keyboard\STM32_USB-FS-Device_Lib 
+-I..\..\..\workspace\Example_USB_Keyboard
+  */
