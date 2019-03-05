@@ -7,13 +7,30 @@ OBJCOPY=${ARCH}-objcopy
 OBJDUMP=${ARCH}-objdump
 SIZE=${ARCH}-size
 
+
+
 ST_FLASH=st-flash
 OUTPUT_FORMAT=ihex
 
-LINKER_SCRIPTS=stm32.ld
 
-CSOURCE=$(shell ls *.c)
-ASOURCE=$(shell ls *.S)
+LINKERSCRIPT=-T linkerscript.ld
+
+INCLUDE=-I./
+INCLUDE+= -I./cmsis
+INCLUDE+= -I./cmsis_boot
+INCLUDE+= -I./stm_lib/inc
+INCLUDE+= -I./USB-FS-Device_Lib
+
+
+DEFINE=-DSTM32F103C8
+DEFINE+= -DSTM32F10X_MD
+DEFINE+= -DUSE_STDPERIPH_DRIVER
+DEFINE+= -D__ASSEMBLY__
+DEFINE+= -DSYSCLK_FREQ_72MHz
+
+
+CSOURCE=$(shell find -name "*.c")
+ASOURCE=$(shell find -name "*.S")
 ELF=main.elf
 HEX=main.hex
 BIN=main.bin
@@ -24,13 +41,10 @@ OBJS=${CSOURCE:.c=.o} ${ASOURCE:.S=.o}
 
 #PORT=-mcpu=cortex-m3  -mthumb # -mlittle-endian
 PORT=-mcpu=cortex-m3 -mthumb # -mlittle-endian
-CPUFREQ=-DCPUCLK=72000000
+
 OPTC=-O2
-CFLAGS= ${PORT} ${CPUFREQ} ${OPTC} -Wall -Wa,-mimplicit-it=always -I./cmsis_include -DSTM32F103xB -DNDEBUG
-# -nostdlib会导致一些编译错误。缺省的内置函数如果不能用简单的方法实现时，会调用标准函数。如memset
-# 连接的时候加 -mthumb让连接器在连接的时候，一些标准函数使用 thumb标准库，由于加了nostdlib，因此
-# 可能这个产生没什么效果
-LFLAGS= -T ${LINKER_SCRIPTS} ${PORT} -nostartfiles -nostdlib # --specs=nosys.specs
+CFLAGS= ${PORT} ${OPTC} -Wall -Wa,-mimplicit-it=always ${INCLUDE} ${DEFINE}
+LFLAGS= ${LINKERSCRIPT} ${PORT} -nostartfiles -nostdlib #--specs=nosys.specs
 all:${HEX}
 ${BIN}:${ELF}
 	${OBJCOPY} -O binary $< $@
@@ -49,6 +63,7 @@ ${DISA_LIST}:${HEX}
 
 clean:
 	rm -rf *.o ${ELF} ${HEX} ${DISA_LIST} ${BIN} *~
+	find -name "*.o" -exec rm \{\} \;
 burn:${HEX}
 	${ST_FLASH} erase
 	${ST_FLASH} --format ${OUTPUT_FORMAT} write $<

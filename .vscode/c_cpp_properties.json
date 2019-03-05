@@ -3,10 +3,16 @@
         {
             "name": "Linux",
             "includePath": [
-                "${workspaceFolder}/src/cmsis_include/**",
+                "${workspaceFolder}/src/**",
                 "/usr/arm-none-eabi/include/**"
             ],
-            "defines": ["STM32F103xB"],
+            "defines": [
+                "SYSCLK_FREQ_72MHz",
+                "STM32F103C8",
+                "STM32F10X_MD",
+                "USE_STDPERIPH_DRIVER",
+                "__ASSEMBLY__"
+            ],
             "compilerPath": "/usr/bin/arm-none-eabi-gcc",
             "cStandard": "c11",
             "cppStandard": "c++17",
@@ -15,3 +21,4 @@
     ],
     "version": 4
 }
+
