@@ -102,10 +102,13 @@ void start_echo(void)
 	}
 	BITBAND(GPIOB->ODR)->bit[12] = 1;
 }
+
+uint8_t vwelcome[]={0x57,0x65,0x6c,0x63,0x6f,0x6d,0x65,0,0x0a,0x0d};
+
 // `Welcome' size: 9
 const uint8_t welcome[]={0x57,0x65,0x6c,0x63,0x6f,0x6d,0x65,0x0a,0x0d};
 
-int main(void) __attribute__ ((section(".adv_main"))) __attribute__ ((naked));
+int main(void) __attribute__ ((section(".text_startup2"))); // __attribute__ ((naked));
 // main方法使用了naked属性定义，因此不要在函数体内使用任何栈变量
 union DWORD sqr;
 int main(void)
@@ -123,6 +126,8 @@ int main(void)
 				idx=0;
 				usart1_hex(sqr.dw);
 			}
+			vwelcome[7]=idx;
+			usart1_puts(vwelcome,10);
 		}
 	}
 }

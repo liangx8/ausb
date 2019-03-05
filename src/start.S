@@ -6,13 +6,14 @@
 
 	.global Default_handler
 
-	.section .init
+	.section .text_startup1
 	.weak Reset_handler
 	.func Reset_handler
 	.type Reset_handler, %function
 	.thumb_func
 	.align
 Reset_handler:
+	bl system_init
 	bl mcu_init
 	/*这是短跳，如果main方法太远，会导致编译失败。必须在linker script中定义main方法的位置(参考stm32.ld和main.c中main的定义)*/
 	b.n main
@@ -20,6 +21,7 @@ Reset_handler:
 	.pool
 	.endfunc
 
+	.section .text
 	.func Default_handler
 	.type Default_handler, %function
 	.thumb_func
@@ -91,31 +93,13 @@ Default_handler:
 .long	EXTI15_10_handler		/* 40 0x0800 00e0 */
 .long	RTCAlarm_handler		/* 41 0x0800 00e4 */
 .long	USBWakeUp_handler		/* 42 0x0800 00e8 */
-.long	0		/* 43 0x0800 00ec Reserved*/
-.long	0		/* 44 0x0800 00f0 Reserved*/
-.long	0		/* 45 0x0800 00f4 Reserved*/
-.long	0		/* 46 0x0800 00f8 Reserved*/
-.long	0		/* 47 0x0800 00fc Reserved*/
-.long	0		/* 48 0x0800 0100 Reserved*/
-.long	0		/* 49 0x0800 0104 Reserved*/
-.long	TIM5_handler		/* 50 0x0800 0108 */
-.long	SPI3_handler		/* 51 0x0800 010c */
-.long	UART4_handler		/* 52 0x0800 0110 */
-.long	UART5_handler		/* 53 0x0800 0114 */
-.long	TIM6_handler		/* 54 0x0800 0118 */
-.long	TIM7_handler		/* 55 0x0800 011c */
-.long	DMA2_CHN1_handler		/* 56 0x0800 0120 */
-.long	DMA2_CHN2_handler		/* 57 0x0800 0124 */
-.long	DMA2_CHN3_handler		/* 58 0x0800 0128 */
-.long	DMA2_CHN4_handler		/* 59 0x0800 012c */
-.long	DMA2_CHN5_handler		/* 60 0x0800 0130 */
-.long	ETH_handler		/* 61 0x0800 0134 */
-.long	ETH_WKUP_handler		/* 62 0x0800 0138 */
-.long	CAN2_TX_handler		/* 63 0x0800 013c */
-.long	CAN2_RX0_handler		/* 64 0x0800 0140 */
-.long	CAN2_RX1_handler		/* 65 0x0800 0144 */
-.long	CAN2_SCE_handler		/* 66 0x0800 0148 */
-.long	OTG_FS_handler		/* 67 0x0800 014c */
+
+section_value:
+.long _sdata
+.long _edata
+.long _sbss
+.long _ebss
+.long _sidata
 
 
 /*.weak Reset_handler
@@ -225,42 +209,6 @@ Default_handler:
 .thumb_set RTCAlarm_handler,Default_handler
 .weak USBWakeUp_handler
 .thumb_set USBWakeUp_handler,Default_handler
-.weak TIM5_handler
-.thumb_set TIM5_handler,Default_handler
-.weak SPI3_handler
-.thumb_set SPI3_handler,Default_handler
-.weak UART4_handler
-.thumb_set UART4_handler,Default_handler
-.weak UART5_handler
-.thumb_set UART5_handler,Default_handler
-.weak TIM6_handler
-.thumb_set TIM6_handler,Default_handler
-.weak TIM7_handler
-.thumb_set TIM7_handler,Default_handler
-.weak DMA2_CHN1_handler
-.thumb_set DMA2_CHN1_handler,Default_handler
-.weak DMA2_CHN2_handler
-.thumb_set DMA2_CHN2_handler,Default_handler
-.weak DMA2_CHN3_handler
-.thumb_set DMA2_CHN3_handler,Default_handler
-.weak DMA2_CHN4_handler
-.thumb_set DMA2_CHN4_handler,Default_handler
-.weak DMA2_CHN5_handler
-.thumb_set DMA2_CHN5_handler,Default_handler
-.weak ETH_handler
-.thumb_set ETH_handler,Default_handler
-.weak ETH_WKUP_handler
-.thumb_set ETH_WKUP_handler,Default_handler
-.weak CAN2_TX_handler
-.thumb_set CAN2_TX_handler,Default_handler
-.weak CAN2_RX0_handler
-.thumb_set CAN2_RX0_handler,Default_handler
-.weak CAN2_RX1_handler
-.thumb_set CAN2_RX1_handler,Default_handler
-.weak CAN2_SCE_handler
-.thumb_set CAN2_SCE_handler,Default_handler
-.weak OTG_FS_handler
-.thumb_set OTG_FS_handler,Default_handler
 	
 	/*stm32f101/2/3/5xxx */
 
