@@ -48,117 +48,57 @@
 /******************************************************************************/
 
 /*******************************************************************************
-* Function Name  : NMI_Handler
+* Function Name  : NMI_handler
 * Description    : This function handles NMI exception.
 * Input          : None
 * Output         : None
 * Return         : None
 *******************************************************************************/
-void NMI_Handler(void)
+void NMI_handler(void)
 {
 }
 
 /*******************************************************************************
-* Function Name  : HardFault_Handler
-* Description    : This function handles Hard Fault exception.
-* Input          : None
-* Output         : None
-* Return         : None
-*******************************************************************************/
-void HardFault_Handler(void)
-{
-  /* Go to infinite loop when Hard Fault exception occurs */
-  while (1)
-  {
-  }
-}
-
-/*******************************************************************************
-* Function Name  : MemManage_Handler
-* Description    : This function handles Memory Manage exception.
-* Input          : None
-* Output         : None
-* Return         : None
-*******************************************************************************/
-void MemManage_Handler(void)
-{
-  /* Go to infinite loop when Memory Manage exception occurs */
-  while (1)
-  {
-  }
-}
-
-/*******************************************************************************
-* Function Name  : BusFault_Handler
-* Description    : This function handles Bus Fault exception.
-* Input          : None
-* Output         : None
-* Return         : None
-*******************************************************************************/
-void BusFault_Handler(void)
-{
-  /* Go to infinite loop when Bus Fault exception occurs */
-  while (1)
-  {
-  }
-}
-
-/*******************************************************************************
-* Function Name  : UsageFault_Handler
-* Description    : This function handles Usage Fault exception.
-* Input          : None
-* Output         : None
-* Return         : None
-*******************************************************************************/
-void UsageFault_Handler(void)
-{
-  /* Go to infinite loop when Usage Fault exception occurs */
-  while (1)
-  {
-  }
-}
-
-/*******************************************************************************
-* Function Name  : SVC_Handler
+* Function Name  : SVCall_handler
 * Description    : This function handles SVCall exception.
 * Input          : None
 * Output         : None
 * Return         : None
 *******************************************************************************/
-void SVC_Handler(void)
+void SVCall_handler(void)
 {
 }
 
 /*******************************************************************************
-* Function Name  : DebugMon_Handler
+* Function Name  : DebugMon_handler
 * Description    : This function handles Debug Monitor exception.
 * Input          : None
 * Output         : None
 * Return         : None
 *******************************************************************************/
-void DebugMon_Handler(void)
+void DebugMon_handler(void)
 {
 }
 
 /*******************************************************************************
-* Function Name  : PendSV_Handler
+* Function Name  : PendSV_handler
 * Description    : This function handles PendSVC exception.
 * Input          : None
 * Output         : None
 * Return         : None
 *******************************************************************************/
-void PendSV_Handler(void)
+void PendSV_handler(void)
 {
 }
 
 /*******************************************************************************
-* Function Name  : SysTick_Handler
+* Function Name  : SysTick_handler
 * Description    : This function handles SysTick Handler.
 * Input          : None
 * Output         : None
 * Return         : None
 *******************************************************************************/
-void SysTick_Handler(void)
+void SysTick_handler(void)
 {
 }
 

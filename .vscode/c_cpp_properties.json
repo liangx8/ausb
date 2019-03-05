@@ -7,7 +7,6 @@
                 "/usr/arm-none-eabi/include/**"
             ],
             "defines": [
-                "SYSCLK_FREQ_72MHz",
                 "STM32F103C8",
                 "STM32F10X_MD",
                 "USE_STDPERIPH_DRIVER",

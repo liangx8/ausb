@@ -2,6 +2,7 @@
     "files.associations": {
         "sound.h": "c",
         "tftdef.h": "c",
-        "usart.h": "c"
+        "usart.h": "c",
+        "usb_pwr.h": "c"
     }
 }

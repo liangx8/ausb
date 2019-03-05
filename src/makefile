@@ -26,11 +26,10 @@ DEFINE=-DSTM32F103C8
 DEFINE+= -DSTM32F10X_MD
 DEFINE+= -DUSE_STDPERIPH_DRIVER
 DEFINE+= -D__ASSEMBLY__
-DEFINE+= -DSYSCLK_FREQ_72MHz
 
 
-CSOURCE=$(shell find -name "*.c")
-ASOURCE=$(shell find -name "*.S")
+CSOURCE=$(shell find -name '*.c' | cut -b 3-)
+ASOURCE=$(shell find -name '*.S' | cut -b 3-)
 ELF=main.elf
 HEX=main.hex
 BIN=main.bin
