@@ -6,7 +6,6 @@
 
 	.global Default_handler
 
-	.section .text_startup1
 	.weak Reset_handler
 	.func Reset_handler
 	.type Reset_handler, %function
@@ -15,8 +14,7 @@
 Reset_handler:
 	bl mem_init
 	bl SystemInit
-	/*这是短跳，如果main方法太远，会导致编译失败。必须在linker script中定义main方法的位置(参考stm32.ld和main.c中main的定义)*/
-	b.n main
+	b.w main
 	.size Reset_handler, . - Reset_handler
 	.pool
 	.endfunc
