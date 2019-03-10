@@ -1,6 +1,7 @@
 #ifndef USART_H
 #define USART_H
 
+void usart1_cr(void);
 void usart1_config(void);
 void usart1_puts(const uint8_t *,uint32_t);
 void usart1_putsz(const char*);

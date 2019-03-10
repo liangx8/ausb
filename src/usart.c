@@ -29,6 +29,11 @@ void usart1_putsz(const char *sz)
 		p++;
 	}
 }
+void usart1_cr(void)
+{
+	usart1_putc('\n');
+	usart1_putc('\r');
+}
 int usart1_get(void){
 	if(0xff00 & u1.in){
 		return -1;
@@ -47,13 +52,13 @@ void usart1_config(void)
 	// page 826
 	USART1->CR1 = USART_CR1_RE | USART_CR1_RXNEIE | USART_CR1_TE;
 	BITBAND(USART1->CR1)->bit[USART_CR1_UE_Pos]=1;
-	u1.tail=0;
-	u1.head=0;
+//	u1.tail=0;
+//	u1.head=0;
 	NVIC_EnableIRQ(USART1_IRQn);
 	NVIC_SetPriority(USART1_IRQn,20);
 }
 
-void USART1_handler(void)
+void USART1_Handler(void)
 {
 	uint32_t sr=USART1->SR;
 	if ((sr & USART_SR_RXNE) == USART_SR_RXNE){

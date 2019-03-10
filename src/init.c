@@ -32,10 +32,10 @@ void system_init(void)
   
     /* Zero fill the bss segment.  This is done with inline assembly since this
        will clear the value of pulDest if it is not kept in a register. */
-    __asm("  ldr     r0, =_sbss\n"
-        "  ldr     r1, =_ebss\n"
-        "  mov     r2, #0\n"
-        "  .thumb_func\n"
+    __asm("    ldr     r0, =_sbss\n"
+        "    ldr     r1, =_ebss\n"
+        "    mov     r2, #0\n"
+        "    .thumb_func\n"
         "zero_loop:\n"
         "    cmp     r0, r1\n"
         "    it      lt\n"

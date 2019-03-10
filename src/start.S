@@ -4,211 +4,194 @@
 	.thumb
 
 
-	.global Default_handler
-
+	.global Default_Handler
+	.weak Reset_Handler
 	.section .text_startup1
-	.weak Reset_handler
-	.func Reset_handler
-	.type Reset_handler, %function
+	.func Reset_Handler
+	.type Reset_Handler, %function
 	.thumb_func
 	.align
-Reset_handler:
+Reset_Handler:
 	bl system_init
 	bl mcu_init
 	/*这是短跳，如果main方法太远，会导致编译失败。必须在linker script中定义main方法的位置(参考stm32.ld和main.c中main的定义)*/
 	b.n main
-	.size Reset_handler, . - Reset_handler
+	.size Reset_Handler, . - Reset_Handler
 	.pool
 	.endfunc
 
 	.section .text
-	.func Default_handler
-	.type Default_handler, %function
+	.func Default_Handler
+	.type Default_Handler, %function
 	.thumb_func
 	.align
-Default_handler:
-	b.n Default_handler
-	.size Default_handler, . - Default_handler
+Default_Handler:
+	b.n Default_Handler
+	.size Default_Handler, . - Default_Handler
 	.pool
 	.endfunc
 	
 	.section .isr_vector,"a",%progbits
 
-.long	_estack
-.long	Reset_handler		/* 0x0800 0004 */
-.long	NMI_handler		/* 0x0800 0008 */
-.long	HardFault_handler		/* 0x0800 000c */
-.long	MemManage_handler		/* 0x0800 0010 */
-.long	BusFault_handler		/* 0x0800 0014 */
-.long	UsageFault_handler		/* 0x0800 0018 */
-.long	0		/* 0x0800 001c Reserved*/
-.long	0		/* 0x0800 0020 Reserved*/
-.long	0		/* 0x0800 0024 Reserved*/
-.long	0		/* 0x0800 0028 Reserved*/
-.long	SVCall_handler		/* 0x0800 002c */
-.long	DebugMonitor_handler		/* 0x0800 0030 */
-.long	0		/* 0x0800 0034 Reserved*/
-.long	PendSV_handler		/* 0x0800 0038 */
-.long	SysTick_handler		/* 0x0800 003c */
-.long	WWDG_handler		/*  0 0x0800 0040 */
-.long	PVD_handler		/*  1 0x0800 0044 */
-.long	TAMPER_handler		/*  2 0x0800 0048 */
-.long	RTC_handler		/*  3 0x0800 004c */
-.long	FLASH_handler		/*  4 0x0800 0050 */
-.long	RCC_handler		/*  5 0x0800 0054 */
-.long	EXTI0_handler		/*  6 0x0800 0058 */
-.long	EXTI1_handler		/*  7 0x0800 005c */
-.long	EXTI2_handler		/*  8 0x0800 0060 */
-.long	EXTI3_handler		/*  9 0x0800 0064 */
-.long	EXTI4_handler		/* 10 0x0800 0068 */
-.long	DMA1_CHN1_handler		/* 11 0x0800 006c */
-.long	DMA1_CHN2_handler		/* 12 0x0800 0070 */
-.long	DMA1_CHN3_handler		/* 13 0x0800 0074 */
-.long	DMA1_CHN4_handler		/* 14 0x0800 0078 */
-.long	DMA1_CHN5_handler		/* 15 0x0800 007c */
-.long	DMA1_CHN6_handler		/* 16 0x0800 0080 */
-.long	DMA1_CHN7_handler		/* 17 0x0800 0084 */
-.long	ADC1_2_handler		/* 18 0x0800 0088 */
-.long	USB_HP_CAN1_TX_handler		/* 19 0x0800 008c */
-.long	USB_LP_CAN1_RX0_handler		/* 20 0x0800 0090 */
-.long	CAN1_RX1_handler		/* 21 0x0800 0094 */
-.long	CAN1_SCE_handler		/* 22 0x0800 0098 */
-.long	EXTI9_5_handler		/* 23 0x0800 009c */
-.long	TIM1_BRK_handler		/* 24 0x0800 00a0 */
-.long	TIM1_UP_handler		/* 25 0x0800 00a4 */
-.long	TIM1_TRG_COM_handler		/* 26 0x0800 00a8 */
-.long	TIM1_CC_handler		/* 27 0x0800 00ac */
-.long	TIM2_handler		/* 28 0x0800 00b0 */
-.long	TIM3_handler		/* 29 0x0800 00b4 */
-.long	TIM4_handler		/* 30 0x0800 00b8 */
-.long	I2C1_EV_handler		/* 31 0x0800 00bc */
-.long	I2C1_ER_handler		/* 32 0x0800 00c0 */
-.long	I2C2_EV_handler		/* 33 0x0800 00c4 */
-.long	I2C2_ER_handler		/* 34 0x0800 00c8 */
-.long	SPI1_handler		/* 35 0x0800 00cc */
-.long	SPI2_handler		/* 36 0x0800 00d0 */
-.long	USART1_handler		/* 37 0x0800 00d4 */
-.long	USART2_handler		/* 38 0x0800 00d8 */
-.long	USART3_handler		/* 39 0x0800 00dc */
-.long	EXTI15_10_handler		/* 40 0x0800 00e0 */
-.long	RTCAlarm_handler		/* 41 0x0800 00e4 */
-.long	USBWakeUp_handler		/* 42 0x0800 00e8 */
+.long	_estack							/*!< -16 0x08000000 Top of stack*/
+.long	Reset_Handler					/*!< -15 0x08000004 Reset Interrupt*/
+.long	NMI_Handler						/*!< -14 0x08000008 2 Non Maskable Interrupt                             */
+.long	0								/*!< -13 0x0800000c Reserved*/
+.long	MemoryManagement_Handler		/*!< -12 0x08000010 4 Cortex-M3 Memory Management Interrupt              */
+.long	BusFault_Handler				/*!< -11 0x08000014 5 Cortex-M3 Bus Fault Interrupt                      */
+.long	UsageFault_Handler				/*!< -10 0x08000018 6 Cortex-M3 Usage Fault Interrupt                    */
+.long	0								/*!< -9 0x0800001c Reserved*/
+.long	0								/*!< -8 0x08000020 Reserved*/
+.long	0								/*!< -7 0x08000024 Reserved*/
+.long	0								/*!< -6 0x08000028 Reserved*/
+.long	SVCall_Handler					/*!< -5 0x0800002c 11 Cortex-M3 SV Call Interrupt                       */
+.long	DebugMonitor_Handler			/*!< -4 0x08000030 12 Cortex-M3 Debug Monitor Interrupt                 */
+.long	0								/*!< -3 0x08000034 Reserved*/
+.long	PendSV_Handler					/*!< -2 0x08000038 14 Cortex-M3 Pend SV Interrupt                       */
+.long	SysTick_Handler					/*!< -1 0x0800003c 15 Cortex-M3 System Tick Interrupt                   */
+.long	WWDG_Handler					/*!< 0 0x08000040 Window WatchDog Interrupt                            */
+.long	PVD_Handler						/*!< 1 0x08000044 PVD through EXTI Line detection Interrupt            */
+.long	TAMPER_Handler					/*!< 2 0x08000048 Tamper Interrupt                                     */
+.long	RTC_Handler						/*!< 3 0x0800004c RTC global Interrupt                                 */
+.long	FLASH_Handler					/*!< 4 0x08000050 FLASH global Interrupt                               */
+.long	RCC_Handler						/*!< 5 0x08000054 RCC global Interrupt                                 */
+.long	EXTI0_Handler					/*!< 6 0x08000058 EXTI Line0 Interrupt                                 */
+.long	EXTI1_Handler					/*!< 7 0x0800005c EXTI Line1 Interrupt                                 */
+.long	EXTI2_Handler					/*!< 8 0x08000060 EXTI Line2 Interrupt                                 */
+.long	EXTI3_Handler					/*!< 9 0x08000064 EXTI Line3 Interrupt                                 */
+.long	EXTI4_Handler					/*!< 10 0x08000068 EXTI Line4 Interrupt                                 */
+.long	DMA1_Channel1_Handler			/*!< 11 0x0800006c DMA1 Channel 1 global Interrupt                      */
+.long	DMA1_Channel2_Handler			/*!< 12 0x08000070 DMA1 Channel 2 global Interrupt                      */
+.long	DMA1_Channel3_Handler			/*!< 13 0x08000074 DMA1 Channel 3 global Interrupt                      */
+.long	DMA1_Channel4_Handler			/*!< 14 0x08000078 DMA1 Channel 4 global Interrupt                      */
+.long	DMA1_Channel5_Handler			/*!< 15 0x0800007c DMA1 Channel 5 global Interrupt                      */
+.long	DMA1_Channel6_Handler			/*!< 16 0x08000080 DMA1 Channel 6 global Interrupt                      */
+.long	DMA1_Channel7_Handler			/*!< 17 0x08000084 DMA1 Channel 7 global Interrupt                      */
+.long	ADC1_2_Handler					/*!< 18 0x08000088 ADC1 and ADC2 global Interrupt                       */
+.long	USB_HP_CAN1_TX_Handler			/*!< 19 0x0800008c USB Device High Priority or CAN1 TX Interrupts       */
+.long	USB_LP_CAN1_RX0_Handler			/*!< 20 0x08000090 USB Device Low Priority or CAN1 RX0 Interrupts       */
+.long	CAN1_RX1_Handler				/*!< 21 0x08000094 CAN1 RX1 Interrupt                                   */
+.long	CAN1_SCE_Handler				/*!< 22 0x08000098 CAN1 SCE Interrupt                                   */
+.long	EXTI9_5_Handler					/*!< 23 0x0800009c External Line[9:5] Interrupts                        */
+.long	TIM1_BRK_Handler				/*!< 24 0x080000a0 TIM1 Break Interrupt                                 */
+.long	TIM1_UP_Handler					/*!< 25 0x080000a4 TIM1 Update Interrupt                                */
+.long	TIM1_TRG_COM_Handler			/*!< 26 0x080000a8 TIM1 Trigger and Commutation Interrupt               */
+.long	TIM1_CC_Handler					/*!< 27 0x080000ac TIM1 Capture Compare Interrupt                       */
+.long	TIM2_Handler					/*!< 28 0x080000b0 TIM2 global Interrupt                                */
+.long	TIM3_Handler					/*!< 29 0x080000b4 TIM3 global Interrupt                                */
+.long	TIM4_Handler					/*!< 30 0x080000b8 TIM4 global Interrupt                                */
+.long	I2C1_EV_Handler					/*!< 31 0x080000bc I2C1 Event Interrupt                                 */
+.long	I2C1_ER_Handler					/*!< 32 0x080000c0 I2C1 Error Interrupt                                 */
+.long	I2C2_EV_Handler					/*!< 33 0x080000c4 I2C2 Event Interrupt                                 */
+.long	I2C2_ER_Handler					/*!< 34 0x080000c8 I2C2 Error Interrupt                                 */
+.long	SPI1_Handler					/*!< 35 0x080000cc SPI1 global Interrupt                                */
+.long	SPI2_Handler					/*!< 36 0x080000d0 SPI2 global Interrupt                                */
+.long	USART1_Handler					/*!< 37 0x080000d4 USART1 global Interrupt                              */
+.long	USART2_Handler					/*!< 38 0x080000d8 USART2 global Interrupt                              */
+.long	USART3_Handler					/*!< 39 0x080000dc USART3 global Interrupt                              */
+.long	EXTI15_10_Handler				/*!< 40 0x080000e0 External Line[15:10] Interrupts                      */
+.long	RTCAlarm_Handler				/*!< 41 0x080000e4 RTC Alarm through EXTI Line Interrupt                */
+.long	USBWakeUp_Handler				/*!< 42 0x080000e8 USB Device WakeUp from suspend through EXTI Line Interrupt */
 
-section_value:
-.long _sdata
-.long _edata
-.long _sbss
-.long _ebss
-.long _sidata
-
-
-/*.weak Reset_handler
-.thumb_set Reset_handler,Default_handler
-*/
-.weak NMI_handler
-.thumb_set NMI_handler,Default_handler
-.weak HardFault_handler
-.thumb_set HardFault_handler,Default_handler
-.weak MemManage_handler
-.thumb_set MemManage_handler,Default_handler
-.weak BusFault_handler
-.thumb_set BusFault_handler,Default_handler
-.weak UsageFault_handler
-.thumb_set UsageFault_handler,Default_handler
-.weak SVCall_handler
-.thumb_set SVCall_handler,Default_handler
-.weak DebugMonitor_handler
-.thumb_set DebugMonitor_handler,Default_handler
-.weak PendSV_handler
-.thumb_set PendSV_handler,Default_handler
-.weak SysTick_handler
-.thumb_set SysTick_handler,Default_handler
-.weak WWDG_handler
-.thumb_set WWDG_handler,Default_handler
-.weak PVD_handler
-.thumb_set PVD_handler,Default_handler
-.weak TAMPER_handler
-.thumb_set TAMPER_handler,Default_handler
-.weak RTC_handler
-.thumb_set RTC_handler,Default_handler
-.weak FLASH_handler
-.thumb_set FLASH_handler,Default_handler
-.weak RCC_handler
-.thumb_set RCC_handler,Default_handler
-.weak EXTI0_handler
-.thumb_set EXTI0_handler,Default_handler
-.weak EXTI1_handler
-.thumb_set EXTI1_handler,Default_handler
-.weak EXTI2_handler
-.thumb_set EXTI2_handler,Default_handler
-.weak EXTI3_handler
-.thumb_set EXTI3_handler,Default_handler
-.weak EXTI4_handler
-.thumb_set EXTI4_handler,Default_handler
-.weak DMA1_CHN1_handler
-.thumb_set DMA1_CHN1_handler,Default_handler
-.weak DMA1_CHN2_handler
-.thumb_set DMA1_CHN2_handler,Default_handler
-.weak DMA1_CHN3_handler
-.thumb_set DMA1_CHN3_handler,Default_handler
-.weak DMA1_CHN4_handler
-.thumb_set DMA1_CHN4_handler,Default_handler
-.weak DMA1_CHN5_handler
-.thumb_set DMA1_CHN5_handler,Default_handler
-.weak DMA1_CHN6_handler
-.thumb_set DMA1_CHN6_handler,Default_handler
-.weak DMA1_CHN7_handler
-.thumb_set DMA1_CHN7_handler,Default_handler
-.weak ADC1_2_handler
-.thumb_set ADC1_2_handler,Default_handler
-.weak USB_HP_CAN1_TX_handler
-.thumb_set USB_HP_CAN1_TX_handler,Default_handler
-.weak USB_LP_CAN1_RX0_handler
-.thumb_set USB_LP_CAN1_RX0_handler,Default_handler
-.weak CAN1_RX1_handler
-.thumb_set CAN1_RX1_handler,Default_handler
-.weak CAN1_SCE_handler
-.thumb_set CAN1_SCE_handler,Default_handler
-.weak EXTI9_5_handler
-.thumb_set EXTI9_5_handler,Default_handler
-.weak TIM1_BRK_handler
-.thumb_set TIM1_BRK_handler,Default_handler
-.weak TIM1_UP_handler
-.thumb_set TIM1_UP_handler,Default_handler
-.weak TIM1_TRG_COM_handler
-.thumb_set TIM1_TRG_COM_handler,Default_handler
-.weak TIM1_CC_handler
-.thumb_set TIM1_CC_handler,Default_handler
-.weak TIM2_handler
-.thumb_set TIM2_handler,Default_handler
-.weak TIM3_handler
-.thumb_set TIM3_handler,Default_handler
-.weak TIM4_handler
-.thumb_set TIM4_handler,Default_handler
-.weak I2C1_EV_handler
-.thumb_set I2C1_EV_handler,Default_handler
-.weak I2C1_ER_handler
-.thumb_set I2C1_ER_handler,Default_handler
-.weak I2C2_EV_handler
-.thumb_set I2C2_EV_handler,Default_handler
-.weak I2C2_ER_handler
-.thumb_set I2C2_ER_handler,Default_handler
-.weak SPI1_handler
-.thumb_set SPI1_handler,Default_handler
-.weak SPI2_handler
-.thumb_set SPI2_handler,Default_handler
-.weak USART1_handler
-.thumb_set USART1_handler,Default_handler
-.weak USART2_handler
-.thumb_set USART2_handler,Default_handler
-.weak USART3_handler
-.thumb_set USART3_handler,Default_handler
-.weak EXTI15_10_handler
-.thumb_set EXTI15_10_handler,Default_handler
-.weak RTCAlarm_handler
-.thumb_set RTCAlarm_handler,Default_handler
-.weak USBWakeUp_handler
-.thumb_set USBWakeUp_handler,Default_handler
-	
-	/*stm32f101/2/3/5xxx */
-
+.weak NMI_Handler
+.thumb_set NMI_Handler, Default_Handler
+.weak MemoryManagement_Handler
+.thumb_set MemoryManagement_Handler, Default_Handler
+.weak BusFault_Handler
+.thumb_set BusFault_Handler, Default_Handler
+.weak UsageFault_Handler
+.thumb_set UsageFault_Handler, Default_Handler
+.weak SVCall_Handler
+.thumb_set SVCall_Handler, Default_Handler
+.weak DebugMonitor_Handler
+.thumb_set DebugMonitor_Handler, Default_Handler
+.weak PendSV_Handler
+.thumb_set PendSV_Handler, Default_Handler
+.weak SysTick_Handler
+.thumb_set SysTick_Handler, Default_Handler
+.weak WWDG_Handler
+.thumb_set WWDG_Handler, Default_Handler
+.weak PVD_Handler
+.thumb_set PVD_Handler, Default_Handler
+.weak TAMPER_Handler
+.thumb_set TAMPER_Handler, Default_Handler
+.weak RTC_Handler
+.thumb_set RTC_Handler, Default_Handler
+.weak FLASH_Handler
+.thumb_set FLASH_Handler, Default_Handler
+.weak RCC_Handler
+.thumb_set RCC_Handler, Default_Handler
+.weak EXTI0_Handler
+.thumb_set EXTI0_Handler, Default_Handler
+.weak EXTI1_Handler
+.thumb_set EXTI1_Handler, Default_Handler
+.weak EXTI2_Handler
+.thumb_set EXTI2_Handler, Default_Handler
+.weak EXTI3_Handler
+.thumb_set EXTI3_Handler, Default_Handler
+.weak EXTI4_Handler
+.thumb_set EXTI4_Handler, Default_Handler
+.weak DMA1_Channel1_Handler
+.thumb_set DMA1_Channel1_Handler, Default_Handler
+.weak DMA1_Channel2_Handler
+.thumb_set DMA1_Channel2_Handler, Default_Handler
+.weak DMA1_Channel3_Handler
+.thumb_set DMA1_Channel3_Handler, Default_Handler
+.weak DMA1_Channel4_Handler
+.thumb_set DMA1_Channel4_Handler, Default_Handler
+.weak DMA1_Channel5_Handler
+.thumb_set DMA1_Channel5_Handler, Default_Handler
+.weak DMA1_Channel6_Handler
+.thumb_set DMA1_Channel6_Handler, Default_Handler
+.weak DMA1_Channel7_Handler
+.thumb_set DMA1_Channel7_Handler, Default_Handler
+.weak ADC1_2_Handler
+.thumb_set ADC1_2_Handler, Default_Handler
+.weak USB_HP_CAN1_TX_Handler
+.thumb_set USB_HP_CAN1_TX_Handler, Default_Handler
+.weak USB_LP_CAN1_RX0_Handler
+.thumb_set USB_LP_CAN1_RX0_Handler, Default_Handler
+.weak CAN1_RX1_Handler
+.thumb_set CAN1_RX1_Handler, Default_Handler
+.weak CAN1_SCE_Handler
+.thumb_set CAN1_SCE_Handler, Default_Handler
+.weak EXTI9_5_Handler
+.thumb_set EXTI9_5_Handler, Default_Handler
+.weak TIM1_BRK_Handler
+.thumb_set TIM1_BRK_Handler, Default_Handler
+.weak TIM1_UP_Handler
+.thumb_set TIM1_UP_Handler, Default_Handler
+.weak TIM1_TRG_COM_Handler
+.thumb_set TIM1_TRG_COM_Handler, Default_Handler
+.weak TIM1_CC_Handler
+.thumb_set TIM1_CC_Handler, Default_Handler
+.weak TIM2_Handler
+.thumb_set TIM2_Handler, Default_Handler
+.weak TIM3_Handler
+.thumb_set TIM3_Handler, Default_Handler
+.weak TIM4_Handler
+.thumb_set TIM4_Handler, Default_Handler
+.weak I2C1_EV_Handler
+.thumb_set I2C1_EV_Handler, Default_Handler
+.weak I2C1_ER_Handler
+.thumb_set I2C1_ER_Handler, Default_Handler
+.weak I2C2_EV_Handler
+.thumb_set I2C2_EV_Handler, Default_Handler
+.weak I2C2_ER_Handler
+.thumb_set I2C2_ER_Handler, Default_Handler
+.weak SPI1_Handler
+.thumb_set SPI1_Handler, Default_Handler
+.weak SPI2_Handler
+.thumb_set SPI2_Handler, Default_Handler
+.weak USART1_Handler
+.thumb_set USART1_Handler, Default_Handler
+.weak USART2_Handler
+.thumb_set USART2_Handler, Default_Handler
+.weak USART3_Handler
+.thumb_set USART3_Handler, Default_Handler
+.weak EXTI15_10_Handler
+.thumb_set EXTI15_10_Handler, Default_Handler
+.weak RTCAlarm_Handler
+.thumb_set RTCAlarm_Handler, Default_Handler
+.weak USBWakeUp_Handler
+.thumb_set USBWakeUp_Handler, Default_Handler

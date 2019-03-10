@@ -56,14 +56,14 @@ CNTR寄存器中的FRES位）。 清除ISTR寄存器然后删除任何杂散
 /*
  * USB low-priority interrupt (Channel 20)
  */
-void USB_LP_CAN1_RX0_handler(void)
+void USB_LP_CAN1_RX0_Handler(void)
 {
     usart1_putsz("USB interrupt\r\n");
 }
 /*
  * USB wakeup interupt (Channel 42)
  */
-void USBWakeUp_handler(void)
+void USBWakeUp_Handler(void)
 {
     usart1_putsz("Wake up\r\n");
 }
